@@ -6,7 +6,10 @@ edition = "2018"
 
 [dependencies]
 actix-web = "4.0.0-beta"
-tracing = "0.1.26"
-tracing-actix-web = "0.4.0-beta"
-tracing-subscriber = "0.2.18"
+futures = "0.3.0"
+mongodb = "2.0.0-beta"
+serde = { version = "1.0.0", features = ["derive"] }
 tokio = { version = "1.6.0", features = ["full"] }
+tracing = "0.1.0"
+tracing-actix-web = "0.4.0-beta"
+tracing-subscriber = "0.2.0"
