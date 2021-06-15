@@ -2,7 +2,6 @@ use std::io::{Error, ErrorKind};
 
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post, App, HttpServer};
-use futures::TryStreamExt;
 use mongodb::{bson, Client, Database};
 use serde::de::Error as DeError;
 use serde::{Deserialize, Serialize};
@@ -10,10 +9,12 @@ use tracing::info;
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+mod db;
+
 type CampaignId = String;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct Campaign {
+pub struct Campaign {
     #[serde(rename = "_id")]
     id: CampaignId,
     name: String,
@@ -31,7 +32,7 @@ struct CampaignBody {
 }
 
 #[post("/campaigns")]
-#[tracing::instrument]
+#[tracing::instrument(skip(db))]
 async fn create_campaign(
     db: Data<Database>,
     body: Json<CreateCampaignBody>,
@@ -42,11 +43,7 @@ async fn create_campaign(
         name: body.name,
     };
 
-    let doc = bson::to_document(&campaign).map_err(|err| Error::new(ErrorKind::Other, err))?;
-    db.collection("campaigns")
-        .insert_one(doc, None)
-        .await
-        .map_err(|err| Error::new(ErrorKind::Other, err))?;
+    db::insert_campaign(&db, &campaign).await?;
 
     let body = CampaignBody {
         id: campaign.id,
@@ -57,16 +54,9 @@ async fn create_campaign(
 }
 
 #[get("/campaigns")]
-#[tracing::instrument]
+#[tracing::instrument(skip(db))]
 async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Error> {
-    let campaigns: Vec<Campaign> = db
-        .collection("campaigns")
-        .find(bson::doc! {}, None)
-        .await
-        .map_err(|err| Error::new(ErrorKind::Other, err))?
-        .try_collect()
-        .await
-        .map_err(|err| Error::new(ErrorKind::Other, err))?;
+    let campaigns = db::fetch_campaigns(&db).await?;
 
     let body = campaigns
         .into_iter()
@@ -80,17 +70,14 @@ async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Er
 }
 
 #[get("/campaigns/{campaign_id}")]
-#[tracing::instrument]
+#[tracing::instrument(skip(db))]
 async fn get_campaign_by_id(
     db: Data<Database>,
     params: Path<String>,
 ) -> Result<Json<Option<CampaignBody>>, Error> {
     let campaign_id = params.into_inner();
-    let campaign: Option<Campaign> = db
-        .collection("campaigns")
-        .find_one(bson::doc! { "_id": campaign_id }, None)
-        .await
-        .map_err(|err| Error::new(ErrorKind::Other, err))?;
+
+    let campaign = db::fetch_campaign_by_id(&db, campaign_id).await?;
 
     let body = campaign.map(|campaign| CampaignBody {
         id: campaign.id,
@@ -166,7 +153,7 @@ impl<'de> Deserialize<'de> for CharacterOwner {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct Character {
+pub struct Character {
     #[serde(rename = "_id")]
     id: CharacterId,
     owner: CharacterOwner,
@@ -191,7 +178,7 @@ struct CharacterBody {
 }
 
 #[post("/campaigns/{campaign_id}/characters")]
-#[tracing::instrument]
+#[tracing::instrument(skip(db))]
 async fn create_character(
     db: Data<Database>,
     params: Path<String>,
@@ -205,11 +192,7 @@ async fn create_character(
         name: body.name,
     };
 
-    let doc = bson::to_document(&character).map_err(|err| Error::new(ErrorKind::Other, err))?;
-    db.collection("characters")
-        .insert_one(doc, None)
-        .await
-        .map_err(|err| Error::new(ErrorKind::Other, err))?;
+    db::insert_character(&db, &character).await?;
 
     let body = CharacterBody {
         id: character.id,
@@ -221,20 +204,14 @@ async fn create_character(
 }
 
 #[get("/campaigns/{campaign_id}/characters")]
-#[tracing::instrument]
+#[tracing::instrument(skip(db))]
 async fn get_characters(
     db: Data<Database>,
     params: Path<String>,
 ) -> Result<Json<Vec<CharacterBody>>, Error> {
     let campaign_id = params.into_inner();
-    let characters: Vec<Character> = db
-        .collection("characters")
-        .find(bson::doc! { "owner.campaign_id": campaign_id }, None)
-        .await
-        .map_err(|err| Error::new(ErrorKind::Other, err))?
-        .try_collect()
-        .await
-        .map_err(|err| Error::new(ErrorKind::Other, err))?;
+
+    let characters = db::fetch_characters_by_campaign(&db, campaign_id).await?;
 
     let body = characters
         .into_iter()
@@ -252,7 +229,7 @@ async fn get_characters(
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
         .with_span_events(FmtSpan::NEW)
-        .compact()
+        .pretty()
         .init();
 
     let uri = "mongodb://localhost:27017";
