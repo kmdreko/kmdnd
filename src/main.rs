@@ -9,6 +9,7 @@ use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 mod db;
+mod error;
 mod handlers;
 
 type CampaignId = String;
