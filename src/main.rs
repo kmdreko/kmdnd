@@ -1,8 +1,7 @@
 use std::io::{Error, ErrorKind};
 
-use actix_web::web::{Data, Json, Path};
-use actix_web::{get, post, App, HttpServer};
-use mongodb::{bson, Client, Database};
+use actix_web::{App, HttpServer};
+use mongodb::{bson, Client};
 use serde::de::Error as DeError;
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -10,6 +9,7 @@ use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 mod db;
+mod handlers;
 
 type CampaignId = String;
 
@@ -18,73 +18,6 @@ pub struct Campaign {
     #[serde(rename = "_id")]
     id: CampaignId,
     name: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct CreateCampaignBody {
-    name: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-struct CampaignBody {
-    id: CampaignId,
-    name: String,
-}
-
-#[post("/campaigns")]
-#[tracing::instrument(skip(db))]
-async fn create_campaign(
-    db: Data<Database>,
-    body: Json<CreateCampaignBody>,
-) -> Result<Json<CampaignBody>, Error> {
-    let body = body.into_inner();
-    let campaign = Campaign {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: body.name,
-    };
-
-    db::insert_campaign(&db, &campaign).await?;
-
-    let body = CampaignBody {
-        id: campaign.id,
-        name: campaign.name,
-    };
-
-    Ok(Json(body))
-}
-
-#[get("/campaigns")]
-#[tracing::instrument(skip(db))]
-async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Error> {
-    let campaigns = db::fetch_campaigns(&db).await?;
-
-    let body = campaigns
-        .into_iter()
-        .map(|campaign| CampaignBody {
-            id: campaign.id,
-            name: campaign.name,
-        })
-        .collect();
-
-    Ok(Json(body))
-}
-
-#[get("/campaigns/{campaign_id}")]
-#[tracing::instrument(skip(db))]
-async fn get_campaign_by_id(
-    db: Data<Database>,
-    params: Path<String>,
-) -> Result<Json<Option<CampaignBody>>, Error> {
-    let campaign_id = params.into_inner();
-
-    let campaign = db::fetch_campaign_by_id(&db, campaign_id).await?;
-
-    let body = campaign.map(|campaign| CampaignBody {
-        id: campaign.id,
-        name: campaign.name,
-    });
-
-    Ok(Json(body))
 }
 
 type UserId = String;
@@ -165,66 +98,6 @@ pub struct Character {
     // effects: Vec<Effect>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-struct CreateCharacterBody {
-    name: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-struct CharacterBody {
-    id: CharacterId,
-    owner: CharacterOwner,
-    name: String,
-}
-
-#[post("/campaigns/{campaign_id}/characters")]
-#[tracing::instrument(skip(db))]
-async fn create_character(
-    db: Data<Database>,
-    params: Path<String>,
-    body: Json<CreateCharacterBody>,
-) -> Result<Json<CharacterBody>, Error> {
-    let campaign_id = params.into_inner();
-    let body = body.into_inner();
-    let character = Character {
-        id: uuid::Uuid::new_v4().to_string(),
-        owner: CharacterOwner::Campaign(campaign_id),
-        name: body.name,
-    };
-
-    db::insert_character(&db, &character).await?;
-
-    let body = CharacterBody {
-        id: character.id,
-        owner: character.owner,
-        name: character.name,
-    };
-
-    Ok(Json(body))
-}
-
-#[get("/campaigns/{campaign_id}/characters")]
-#[tracing::instrument(skip(db))]
-async fn get_characters(
-    db: Data<Database>,
-    params: Path<String>,
-) -> Result<Json<Vec<CharacterBody>>, Error> {
-    let campaign_id = params.into_inner();
-
-    let characters = db::fetch_characters_by_campaign(&db, campaign_id).await?;
-
-    let body = characters
-        .into_iter()
-        .map(|character| CharacterBody {
-            id: character.id,
-            owner: character.owner,
-            name: character.name,
-        })
-        .collect();
-
-    Ok(Json(body))
-}
-
 #[actix_web::main]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
@@ -248,11 +121,11 @@ async fn main() -> Result<(), Error> {
         App::new()
             .data(db.clone())
             .wrap(TracingLogger::default())
-            .service(create_campaign)
-            .service(get_campaigns)
-            .service(get_campaign_by_id)
-            .service(create_character)
-            .service(get_characters)
+            .service(handlers::create_campaign)
+            .service(handlers::get_campaigns)
+            .service(handlers::get_campaign_by_id)
+            .service(handlers::create_character)
+            .service(handlers::get_characters)
     })
     .bind("127.0.0.1:8080")?
     .run()
