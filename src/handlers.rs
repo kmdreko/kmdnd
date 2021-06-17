@@ -15,6 +15,7 @@ struct CreateCampaignBody {
 struct CampaignBody {
     id: CampaignId,
     name: String,
+    characters: Vec<CharacterBody>,
 }
 
 #[post("/campaigns")]
@@ -34,6 +35,7 @@ async fn create_campaign(
     let body = CampaignBody {
         id: campaign.id,
         name: campaign.name,
+        characters: vec![],
     };
 
     Ok(Json(body))
@@ -44,13 +46,22 @@ async fn create_campaign(
 async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Error> {
     let campaigns = db::fetch_campaigns(&db).await?;
 
-    let body = campaigns
-        .into_iter()
-        .map(|campaign| CampaignBody {
-            id: campaign.id,
+    let mut body = vec![];
+    for campaign in campaigns {
+        body.push(CampaignBody {
+            id: campaign.id.clone(),
             name: campaign.name,
+            characters: db::fetch_characters_by_campaign(&db, campaign.id)
+                .await?
+                .into_iter()
+                .map(|character| CharacterBody {
+                    id: character.id,
+                    name: character.name,
+                    owner: character.owner,
         })
-        .collect();
+                .collect(),
+        });
+    }
 
     Ok(Json(body))
 }
@@ -65,10 +76,19 @@ async fn get_campaign_by_id(
 
     let campaign = db::fetch_campaign_by_id(&db, campaign_id).await?;
 
-    let body = campaign.map(|campaign| CampaignBody {
-        id: campaign.id,
+    let body = CampaignBody {
+        id: campaign.id.clone(),
         name: campaign.name,
-    });
+        characters: db::fetch_characters_by_campaign(&db, campaign.id)
+            .await?
+            .into_iter()
+            .map(|character| CharacterBody {
+                id: character.id,
+                name: character.name,
+                owner: character.owner,
+            })
+            .collect(),
+    };
 
     Ok(Json(body))
 }
