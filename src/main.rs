@@ -2,127 +2,17 @@ use std::io::{Error, ErrorKind};
 
 use actix_web::{App, HttpServer};
 use mongodb::{bson, Client};
-use serde::de::Error as DeError;
-use serde::{Deserialize, Serialize};
 use tracing::info;
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+mod campaign;
+mod character;
 mod db;
 mod error;
 mod handlers;
 mod typedid;
-
-use typedid::{TypedId, TypedIdMarker};
-
-type CampaignId = TypedId<Campaign>;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Campaign {
-    #[serde(rename = "_id")]
-    id: CampaignId,
-    name: String,
-}
-
-impl TypedIdMarker for Campaign {
-    fn tag() -> &'static str {
-        "CPN"
-    }
-}
-
-type UserId = TypedId<User>;
-
-impl TypedIdMarker for User {
-    fn tag() -> &'static str {
-        "USR"
-    }
-}
-
-#[derive(Clone, Debug)]
-struct User;
-
-type CharacterId = TypedId<Character>;
-
-impl TypedIdMarker for Character {
-    fn tag() -> &'static str {
-        "CHR"
-    }
-}
-
-// A character must have an owning User, Campaign, or both
-#[derive(Clone, Debug)]
-enum CharacterOwner {
-    Campaign(CampaignId),
-    User(UserId),
-    UserInCampaign(UserId, CampaignId),
-}
-
-impl Serialize for CharacterOwner {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        #[derive(Serialize)]
-        struct Dummy<'a> {
-            campaign_id: Option<&'a CampaignId>,
-            user_id: Option<&'a UserId>,
-        }
-
-        let dummy = match self {
-            CharacterOwner::Campaign(campaign_id) => Dummy {
-                campaign_id: Some(campaign_id),
-                user_id: None,
-            },
-            CharacterOwner::User(user_id) => Dummy {
-                campaign_id: None,
-                user_id: Some(user_id),
-            },
-            CharacterOwner::UserInCampaign(user_id, campaign_id) => Dummy {
-                campaign_id: Some(campaign_id),
-                user_id: Some(user_id),
-            },
-        };
-
-        dummy.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for CharacterOwner {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct Dummy {
-            campaign_id: Option<CampaignId>,
-            user_id: Option<UserId>,
-        }
-
-        let dummy = Dummy::deserialize(deserializer)?;
-
-        match (dummy.campaign_id, dummy.user_id) {
-            (Some(campaign_id), None) => Ok(CharacterOwner::Campaign(campaign_id)),
-            (None, Some(user_id)) => Ok(CharacterOwner::User(user_id)),
-            (Some(campaign_id), Some(user_id)) => {
-                Ok(CharacterOwner::UserInCampaign(user_id, campaign_id))
-            }
-            (None, None) => Err(D::Error::custom("character must have a user or campaign")),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Character {
-    #[serde(rename = "_id")]
-    id: CharacterId,
-    owner: CharacterOwner,
-    name: String,
-    // attributes: String,
-    // items: Vec<Item>,
-    // position: Option<(f32, f32)>,
-    // health: u32,
-    // effects: Vec<Effect>,
-}
+mod user;
 
 #[actix_web::main]
 async fn main() -> Result<(), Error> {

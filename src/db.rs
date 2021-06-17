@@ -1,8 +1,9 @@
 use futures::TryStreamExt;
 use mongodb::{bson, Database};
 
+use crate::campaign::{Campaign, CampaignId};
+use crate::character::{Character, CharacterId};
 use crate::error::Error;
-use crate::{Campaign, CampaignId, Character, CharacterId};
 
 const CAMPAIGNS: &str = "campaigns";
 const CHARACTERS: &str = "characters";

@@ -8,7 +8,8 @@ use mongodb::bson::ser::Error as BsonError;
 use mongodb::error::Error as DatabaseError;
 use serde::Serialize;
 
-use crate::{CampaignId, CharacterId};
+use crate::campaign::CampaignId;
+use crate::character::CharacterId;
 
 #[derive(Debug)]
 pub enum Error {
