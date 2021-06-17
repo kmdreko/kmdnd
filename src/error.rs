@@ -8,11 +8,13 @@ use mongodb::bson::ser::Error as BsonError;
 use mongodb::error::Error as DatabaseError;
 use serde::Serialize;
 
+use crate::{CampaignId, CharacterId};
+
 #[derive(Debug)]
 pub enum Error {
     // 404
-    CampaignDoesNotExist(String),
-    CharacterDoesNotExist(String),
+    CampaignDoesNotExist(CampaignId),
+    CharacterDoesNotExist(CharacterId),
 
     // 500
     FailedDatabaseCall(DatabaseError),

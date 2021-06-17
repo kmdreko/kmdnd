@@ -26,7 +26,7 @@ async fn create_campaign(
 ) -> Result<Json<CampaignBody>, Error> {
     let body = body.into_inner();
     let campaign = Campaign {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: CampaignId::new(),
         name: body.name,
     };
 
@@ -70,16 +70,16 @@ async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Er
 #[tracing::instrument(skip(db))]
 async fn get_campaign_by_id(
     db: Data<Database>,
-    params: Path<String>,
+    params: Path<CampaignId>,
 ) -> Result<Json<CampaignBody>, Error> {
     let campaign_id = params.into_inner();
 
-    let campaign = db::fetch_campaign_by_id(&db, campaign_id.clone())
+    let campaign = db::fetch_campaign_by_id(&db, campaign_id)
         .await?
         .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
 
     let body = CampaignBody {
-        id: campaign.id.clone(),
+        id: campaign.id,
         name: campaign.name,
         characters: db::fetch_characters_by_campaign(&db, campaign.id)
             .await?
@@ -111,18 +111,18 @@ struct CharacterBody {
 #[tracing::instrument(skip(db))]
 async fn create_character(
     db: Data<Database>,
-    params: Path<String>,
+    params: Path<CampaignId>,
     body: Json<CreateCharacterBody>,
 ) -> Result<Json<CharacterBody>, Error> {
     let campaign_id = params.into_inner();
     let body = body.into_inner();
 
-    db::fetch_campaign_by_id(&db, campaign_id.clone())
+    db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id.clone()))?;
+        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
 
     let character = Character {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: CharacterId::new(),
         owner: CharacterOwner::Campaign(campaign_id),
         name: body.name,
     };
@@ -142,13 +142,13 @@ async fn create_character(
 #[tracing::instrument(skip(db))]
 async fn get_characters(
     db: Data<Database>,
-    params: Path<String>,
+    params: Path<CampaignId>,
 ) -> Result<Json<Vec<CharacterBody>>, Error> {
     let campaign_id = params.into_inner();
 
-    db::fetch_campaign_by_id(&db, campaign_id.clone())
+    db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id.clone()))?;
+        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
 
     let characters = db::fetch_characters_by_campaign(&db, campaign_id).await?;
 
@@ -168,18 +168,17 @@ async fn get_characters(
 #[tracing::instrument(skip(db))]
 async fn get_character_by_campaign(
     db: Data<Database>,
-    params: Path<(String, String)>,
+    params: Path<(CampaignId, CharacterId)>,
 ) -> Result<Json<CharacterBody>, Error> {
     let (campaign_id, character_id) = params.into_inner();
 
-    db::fetch_campaign_by_id(&db, campaign_id.clone())
+    db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id.clone()))?;
+        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
 
-    let character =
-        db::fetch_character_by_campaign_and_id(&db, campaign_id.clone(), character_id.clone())
-            .await?
-            .ok_or(Error::CharacterDoesNotExist(character_id.clone()))?;
+    let character = db::fetch_character_by_campaign_and_id(&db, campaign_id, character_id)
+        .await?
+        .ok_or(Error::CharacterDoesNotExist(character_id))?;
 
     let body = CharacterBody {
         id: character.id,

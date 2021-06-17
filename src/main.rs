@@ -11,8 +11,11 @@ use tracing_subscriber::fmt::format::FmtSpan;
 mod db;
 mod error;
 mod handlers;
+mod typedid;
 
-type CampaignId = String;
+use typedid::{TypedId, TypedIdMarker};
+
+type CampaignId = TypedId<Campaign>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Campaign {
@@ -21,8 +24,30 @@ pub struct Campaign {
     name: String,
 }
 
-type UserId = String;
-type CharacterId = String;
+impl TypedIdMarker for Campaign {
+    fn tag() -> &'static str {
+        "CPN"
+    }
+}
+
+type UserId = TypedId<User>;
+
+impl TypedIdMarker for User {
+    fn tag() -> &'static str {
+        "USR"
+    }
+}
+
+#[derive(Clone, Debug)]
+struct User;
+
+type CharacterId = TypedId<Character>;
+
+impl TypedIdMarker for Character {
+    fn tag() -> &'static str {
+        "CHR"
+    }
+}
 
 // A character must have an owning User, Campaign, or both
 #[derive(Clone, Debug)]
