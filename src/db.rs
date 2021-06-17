@@ -2,7 +2,7 @@ use futures::TryStreamExt;
 use mongodb::{bson, Database};
 
 use crate::error::Error;
-use crate::{Campaign, CampaignId, Character};
+use crate::{Campaign, CampaignId, Character, CharacterId};
 
 const CAMPAIGNS: &str = "campaigns";
 const CHARACTERS: &str = "characters";
@@ -61,4 +61,21 @@ pub async fn fetch_characters_by_campaign(
         .await?;
 
     Ok(characters)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn fetch_character_by_campaign_and_id(
+    db: &Database,
+    campaign_id: CampaignId,
+    character_id: CharacterId,
+) -> Result<Option<Character>, Error> {
+    let character: Option<Character> = db
+        .collection(CHARACTERS)
+        .find_one(
+            bson::doc! { "_id": character_id, "owner.campaign_id": campaign_id },
+            None,
+        )
+        .await?;
+
+    Ok(character)
 }

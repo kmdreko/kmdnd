@@ -10,6 +10,10 @@ use serde::Serialize;
 
 #[derive(Debug)]
 pub enum Error {
+    // 404
+    CampaignDoesNotExist(String),
+    CharacterDoesNotExist(String),
+
     // 500
     FailedDatabaseCall(DatabaseError),
     FailedToSerializeToBson(BsonError),
@@ -18,6 +22,8 @@ pub enum Error {
 impl Error {
     pub fn error_code(&self) -> &'static str {
         match self {
+            Error::CampaignDoesNotExist(_) => "E4041000",
+            Error::CharacterDoesNotExist(_) => "E4041000",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
         }
@@ -25,6 +31,8 @@ impl Error {
 
     pub fn error_message(&self) -> &'static str {
         match self {
+            Error::CampaignDoesNotExist(_) => "The requested campaign does not exist",
+            Error::CharacterDoesNotExist(_) => "The requested character does not exist",
             Error::FailedDatabaseCall(_) => {
                 "An error occurred when communicating with the database"
             }
@@ -38,6 +46,8 @@ impl Error {
 impl ResponseError for Error {
     fn status_code(&self) -> StatusCode {
         match self {
+            Error::CampaignDoesNotExist(_) => StatusCode::NOT_FOUND,
+            Error::CharacterDoesNotExist(_) => StatusCode::NOT_FOUND,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }

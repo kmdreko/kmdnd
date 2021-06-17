@@ -103,7 +103,7 @@ pub struct Character {
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
         .with_span_events(FmtSpan::NEW)
-        .pretty()
+        .compact()
         .init();
 
     let uri = "mongodb://localhost:27017";
@@ -127,6 +127,7 @@ async fn main() -> Result<(), Error> {
             .service(handlers::get_campaign_by_id)
             .service(handlers::create_character)
             .service(handlers::get_characters)
+            .service(handlers::get_character_by_campaign)
     })
     .bind("127.0.0.1:8080")?
     .run()
