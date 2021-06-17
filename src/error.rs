@@ -6,7 +6,7 @@ use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 use mongodb::bson::ser::Error as BsonError;
 use mongodb::error::Error as DatabaseError;
-use serde::Serialize;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
@@ -26,7 +26,7 @@ impl Error {
     pub fn error_code(&self) -> &'static str {
         match self {
             Error::CampaignDoesNotExist(_) => "E4041000",
-            Error::CharacterDoesNotExist(_) => "E4041000",
+            Error::CharacterDoesNotExist(_) => "E4041001",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
         }
@@ -57,19 +57,35 @@ impl ResponseError for Error {
     }
 
     fn error_response(&self) -> HttpResponse<Body> {
-        #[derive(Serialize)]
-        struct ErrorResponseBody {
-            error_code: &'static str,
-            error_message: &'static str,
-            // error_meta: &'a Serialize,
-        }
+        HttpResponse::build(self.status_code()).json(&self)
+    }
+}
 
-        let body = ErrorResponseBody {
-            error_code: self.error_code(),
-            error_message: self.error_message(),
+impl Serialize for Error {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Error", 3)?;
+        state.serialize_field("error_code", &self.error_code())?;
+        state.serialize_field("error_message", &self.error_message())?;
+
+        match self {
+            Error::CampaignDoesNotExist(campaign_id) => {
+                state.serialize_field("error_meta", campaign_id)?
+            }
+            Error::CharacterDoesNotExist(character_id) => {
+                state.serialize_field("error_meta", character_id)?
+            }
+            Error::FailedDatabaseCall(db_error) => {
+                state.serialize_field("error_meta", &db_error.to_string())?
+            }
+            Error::FailedToSerializeToBson(bson_error) => {
+                state.serialize_field("error_meta", &bson_error.to_string())?
+            }
         };
 
-        HttpResponse::build(self.status_code()).json(body)
+        state.end()
     }
 }
 
