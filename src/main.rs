@@ -10,6 +10,7 @@ mod campaign;
 mod character;
 mod encounter;
 mod error;
+mod operation;
 mod typedid;
 mod user;
 
@@ -46,6 +47,8 @@ async fn main() -> Result<(), Error> {
             .service(encounter::endpoints::get_encounters_in_campaign)
             .service(encounter::endpoints::get_current_encounter_in_campaign)
             .service(encounter::endpoints::finish_current_encounter_in_campaign)
+            .service(operation::endpoints::get_operations_in_current_encounter_in_campaign)
+            .service(operation::endpoints::move_in_current_encounter_in_campaign)
     })
     .bind("127.0.0.1:8080")?
     .run()

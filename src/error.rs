@@ -22,6 +22,8 @@ pub enum Error {
 
     // 409
     CurrentEncounterAlreadyExists(EncounterId),
+    CharacterNotInCampaign(CharacterId),
+    CharacterNotInEncounter(CharacterId),
 
     // 500
     FailedDatabaseCall(DatabaseError),
@@ -35,6 +37,8 @@ impl Error {
             Error::CharacterDoesNotExist(_) => "E4041001",
             Error::CurrentEncounterDoesNotExist => "E4041002",
             Error::CurrentEncounterAlreadyExists(_) => "E4091000",
+            Error::CharacterNotInCampaign(_) => "E4091001",
+            Error::CharacterNotInEncounter(_) => "E4091002",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
         }
@@ -49,6 +53,12 @@ impl Error {
             }
             Error::CurrentEncounterAlreadyExists(_) => {
                 "The requested campaign is currently in an encounter"
+            }
+            Error::CharacterNotInCampaign(_) => {
+                "The requested operation uses a character that is not in the campaign"
+            }
+            Error::CharacterNotInEncounter(_) => {
+                "The requested operation uses a character that is not in the encounter"
             }
             Error::FailedDatabaseCall(_) => {
                 "An error occurred when communicating with the database"
@@ -67,6 +77,8 @@ impl ResponseError for Error {
             Error::CharacterDoesNotExist(_) => StatusCode::NOT_FOUND,
             Error::CurrentEncounterDoesNotExist => StatusCode::NOT_FOUND,
             Error::CurrentEncounterAlreadyExists(_) => StatusCode::CONFLICT,
+            Error::CharacterNotInCampaign(_) => StatusCode::CONFLICT,
+            Error::CharacterNotInEncounter(_) => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -98,6 +110,12 @@ impl Serialize for Error {
             }
             Error::CurrentEncounterAlreadyExists(encounter_id) => {
                 state.serialize_field("error_meta", encounter_id)?
+            }
+            Error::CharacterNotInCampaign(character_id) => {
+                state.serialize_field("error_meta", character_id)?
+            }
+            Error::CharacterNotInEncounter(character_id) => {
+                state.serialize_field("error_meta", character_id)?
             }
             Error::FailedDatabaseCall(db_error) => {
                 state.serialize_field("error_meta", &db_error.to_string())?

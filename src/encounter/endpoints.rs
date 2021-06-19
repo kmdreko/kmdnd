@@ -5,7 +5,7 @@ use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::{self, CampaignId};
-use crate::character::CharacterId;
+use crate::character::{self, CharacterId};
 use crate::error::Error;
 
 use super::{db, Encounter, EncounterId, EncounterState};
@@ -44,6 +44,13 @@ async fn create_encounter_in_campaign(
     let current_encounter = db::fetch_current_encounter_by_campaign(&db, campaign_id).await?;
     if let Some(current_encounter) = current_encounter {
         return Err(Error::CurrentEncounterAlreadyExists(current_encounter.id));
+    }
+
+    let characters = character::db::fetch_characters_by_campaign(&db, campaign_id).await?;
+    for character_id in &body.character_ids {
+        if !characters.iter().any(|c| c.id == *character_id) {
+            return Err(Error::CharacterNotInCampaign(*character_id));
+        }
     }
 
     let encounter = Encounter {

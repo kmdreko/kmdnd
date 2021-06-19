@@ -29,7 +29,7 @@ impl TypedIdMarker for Encounter {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum EncounterState {
     Initiative,
     Turn {
