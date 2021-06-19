@@ -28,6 +28,19 @@ pub struct EncounterBody {
     pub state: EncounterState,
 }
 
+impl EncounterBody {
+    pub fn render(encounter: Encounter) -> EncounterBody {
+        EncounterBody {
+            id: encounter.id,
+            campaign_id: encounter.campaign_id,
+            created_at: encounter.created_at,
+            modified_at: encounter.modified_at,
+            character_ids: encounter.character_ids,
+            state: encounter.state,
+        }
+    }
+}
+
 #[post("/campaigns/{campaign_id}/encounters")]
 #[tracing::instrument(skip(db))]
 async fn create_encounter_in_campaign(
@@ -66,16 +79,7 @@ async fn create_encounter_in_campaign(
 
     db::insert_encounter(&db, &encounter).await?;
 
-    let body = EncounterBody {
-        id: encounter.id,
-        campaign_id: encounter.campaign_id,
-        created_at: encounter.created_at,
-        modified_at: encounter.modified_at,
-        character_ids: encounter.character_ids,
-        state: encounter.state,
-    };
-
-    Ok(Json(body))
+    Ok(Json(EncounterBody::render(encounter)))
 }
 
 #[get("/campaigns/{campaign_id}/encounters")]
@@ -94,14 +98,7 @@ async fn get_encounters_in_campaign(
 
     let body = encounters
         .into_iter()
-        .map(|encounter| EncounterBody {
-            id: encounter.id,
-            campaign_id: encounter.campaign_id,
-            created_at: encounter.created_at,
-            modified_at: encounter.modified_at,
-            character_ids: encounter.character_ids,
-            state: encounter.state,
-        })
+        .map(|encounter| EncounterBody::render(encounter))
         .collect();
 
     Ok(Json(body))
@@ -123,16 +120,7 @@ async fn get_current_encounter_in_campaign(
         .await?
         .ok_or(Error::CurrentEncounterDoesNotExist)?;
 
-    let body = EncounterBody {
-        id: encounter.id,
-        campaign_id: encounter.campaign_id,
-        created_at: encounter.created_at,
-        modified_at: encounter.modified_at,
-        character_ids: encounter.character_ids,
-        state: encounter.state,
-    };
-
-    Ok(Json(body))
+    Ok(Json(EncounterBody::render(encounter)))
 }
 
 #[post("/campaigns/{campaign_id}/encounters/current/finish")]

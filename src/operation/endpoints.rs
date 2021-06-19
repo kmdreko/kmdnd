@@ -22,6 +22,20 @@ pub struct OperationBody {
     pub operation_type: OperationType,
 }
 
+impl OperationBody {
+    fn render(operation: Operation) -> OperationBody {
+        OperationBody {
+            id: operation.id,
+            campaign_id: operation.campaign_id,
+            encounter_id: operation.encounter_id,
+            character_id: operation.character_id,
+            created_at: operation.created_at,
+            modified_at: operation.modified_at,
+            operation_type: operation.operation_type,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct MoveBody {
     pub character_id: CharacterId,
@@ -48,15 +62,7 @@ async fn get_operations_in_current_encounter_in_campaign(
 
     let body = operations
         .into_iter()
-        .map(|operation| OperationBody {
-            id: operation.id,
-            campaign_id: operation.campaign_id,
-            encounter_id: operation.encounter_id,
-            character_id: operation.character_id,
-            created_at: operation.created_at,
-            modified_at: operation.modified_at,
-            operation_type: operation.operation_type,
-        })
+        .map(|operation| OperationBody::render(operation))
         .collect();
 
     Ok(Json(body))
@@ -97,15 +103,5 @@ async fn move_in_current_encounter_in_campaign(
 
     db::insert_operation(&db, &operation).await?;
 
-    let body = OperationBody {
-        id: operation.id,
-        campaign_id: operation.campaign_id,
-        encounter_id: operation.encounter_id,
-        character_id: operation.character_id,
-        created_at: operation.created_at,
-        modified_at: operation.modified_at,
-        operation_type: operation.operation_type,
-    };
-
-    Ok(Json(body))
+    Ok(Json(OperationBody::render(operation)))
 }

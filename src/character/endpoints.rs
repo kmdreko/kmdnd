@@ -22,6 +22,18 @@ pub struct CharacterBody {
     pub modified_at: DateTime<Utc>,
 }
 
+impl CharacterBody {
+    pub fn render(character: Character) -> CharacterBody {
+        CharacterBody {
+            id: character.id,
+            owner: character.owner,
+            name: character.name,
+            created_at: character.created_at,
+            modified_at: character.modified_at,
+        }
+    }
+}
+
 #[post("/campaigns/{campaign_id}/characters")]
 #[tracing::instrument(skip(db))]
 async fn create_character_in_campaign(
@@ -47,15 +59,7 @@ async fn create_character_in_campaign(
 
     character::db::insert_character(&db, &character).await?;
 
-    let body = CharacterBody {
-        id: character.id,
-        owner: character.owner,
-        name: character.name,
-        created_at: character.created_at,
-        modified_at: character.modified_at,
-    };
-
-    Ok(Json(body))
+    Ok(Json(CharacterBody::render(character)))
 }
 
 #[get("/campaigns/{campaign_id}/characters")]
@@ -74,13 +78,7 @@ async fn get_characters_in_campaign(
 
     let body = characters
         .into_iter()
-        .map(|character| CharacterBody {
-            id: character.id,
-            owner: character.owner,
-            name: character.name,
-            created_at: character.created_at,
-            modified_at: character.modified_at,
-        })
+        .map(|character| CharacterBody::render(character))
         .collect();
 
     Ok(Json(body))
@@ -103,13 +101,5 @@ async fn get_character_in_campaign_by_id(
             .await?
             .ok_or(Error::CharacterDoesNotExist(character_id))?;
 
-    let body = CharacterBody {
-        id: character.id,
-        owner: character.owner,
-        name: character.name,
-        created_at: character.created_at,
-        modified_at: character.modified_at,
-    };
-
-    Ok(Json(body))
+    Ok(Json(CharacterBody::render(character)))
 }
