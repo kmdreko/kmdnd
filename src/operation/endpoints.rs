@@ -52,11 +52,11 @@ async fn get_operations_in_current_encounter_in_campaign(
 
     campaign::db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
     let encounter = encounter::db::fetch_current_encounter_by_campaign(&db, campaign_id)
         .await?
-        .ok_or(Error::CurrentEncounterDoesNotExist)?;
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
 
     let operations = db::fetch_operations_by_encounter(&db, encounter.id).await?;
 
@@ -80,14 +80,18 @@ async fn move_in_current_encounter_in_campaign(
 
     campaign::db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
     let encounter = encounter::db::fetch_current_encounter_by_campaign(&db, campaign_id)
         .await?
-        .ok_or(Error::CurrentEncounterDoesNotExist)?;
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
 
     if !encounter.character_ids.contains(&body.character_id) {
-        return Err(Error::CharacterNotInEncounter(body.character_id));
+        return Err(Error::CharacterNotInEncounter {
+            campaign_id,
+            encounter_id: encounter.id,
+            character_id: body.character_id,
+        });
     }
 
     let now = Utc::now();

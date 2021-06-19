@@ -96,7 +96,7 @@ async fn get_campaign_by_id(
 
     let campaign = db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
     Ok(Json(CampaignBody::render(&db, campaign).await?))
 }

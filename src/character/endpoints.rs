@@ -46,7 +46,7 @@ async fn create_character_in_campaign(
 
     campaign::db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
     let now = Utc::now();
     let character = Character {
@@ -72,7 +72,7 @@ async fn get_characters_in_campaign(
 
     campaign::db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
     let characters = character::db::fetch_characters_by_campaign(&db, campaign_id).await?;
 
@@ -94,12 +94,12 @@ async fn get_character_in_campaign_by_id(
 
     campaign::db::fetch_campaign_by_id(&db, campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
     let character =
         character::db::fetch_character_by_campaign_and_id(&db, campaign_id, character_id)
             .await?
-            .ok_or(Error::CharacterDoesNotExist(character_id))?;
+            .ok_or(Error::CharacterDoesNotExist { character_id })?;
 
     Ok(Json(CharacterBody::render(character)))
 }
