@@ -9,6 +9,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 mod campaign;
 mod character;
 mod db;
+mod encounter;
 mod error;
 mod handlers;
 mod typedid;
@@ -40,9 +41,13 @@ async fn main() -> Result<(), Error> {
             .service(handlers::create_campaign)
             .service(handlers::get_campaigns)
             .service(handlers::get_campaign_by_id)
-            .service(handlers::create_character)
-            .service(handlers::get_characters)
-            .service(handlers::get_character_by_campaign)
+            .service(handlers::create_character_in_campaign)
+            .service(handlers::get_characters_in_campaign)
+            .service(handlers::get_character_in_campaign_by_id)
+            .service(handlers::create_encounter_in_campaign)
+            .service(handlers::get_encounters_in_campaign)
+            .service(handlers::get_current_encounter_in_campaign)
+            .service(handlers::finish_current_encounter_in_campaign)
     })
     .bind("127.0.0.1:8080")?
     .run()

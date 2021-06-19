@@ -357,6 +357,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
+ "serde",
  "time 0.1.43",
  "winapi",
 ]
@@ -496,9 +497,11 @@ name = "dnd"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "chrono",
  "futures",
  "mongodb",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-actix-web",

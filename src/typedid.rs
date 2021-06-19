@@ -26,6 +26,14 @@ impl<T: TypedIdMarker> Clone for TypedId<T> {
     }
 }
 
+impl<T: TypedIdMarker> Eq for TypedId<T> {}
+
+impl<T: TypedIdMarker> PartialEq for TypedId<T> {
+    fn eq(&self, rhs: &TypedId<T>) -> bool {
+        self.0 == rhs.0
+    }
+}
+
 impl<T: TypedIdMarker> Display for TypedId<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "{}-{:X}", T::tag(), self.0)
