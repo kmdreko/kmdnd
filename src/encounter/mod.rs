@@ -5,6 +5,10 @@ use crate::campaign::CampaignId;
 use crate::character::CharacterId;
 use crate::typedid::{TypedId, TypedIdMarker};
 
+pub mod db;
+pub mod endpoints;
+pub use endpoints::*;
+
 pub type EncounterId = TypedId<Encounter>;
 pub type Round = u32;
 

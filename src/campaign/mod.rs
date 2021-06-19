@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::typedid::{TypedId, TypedIdMarker};
 
+pub mod db;
+pub mod endpoints;
+pub use endpoints::*;
+
 pub type CampaignId = TypedId<Campaign>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

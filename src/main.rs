@@ -8,10 +8,8 @@ use tracing_subscriber::fmt::format::FmtSpan;
 
 mod campaign;
 mod character;
-mod db;
 mod encounter;
 mod error;
-mod handlers;
 mod typedid;
 mod user;
 
@@ -38,16 +36,16 @@ async fn main() -> Result<(), Error> {
         App::new()
             .data(db.clone())
             .wrap(TracingLogger::default())
-            .service(handlers::create_campaign)
-            .service(handlers::get_campaigns)
-            .service(handlers::get_campaign_by_id)
-            .service(handlers::create_character_in_campaign)
-            .service(handlers::get_characters_in_campaign)
-            .service(handlers::get_character_in_campaign_by_id)
-            .service(handlers::create_encounter_in_campaign)
-            .service(handlers::get_encounters_in_campaign)
-            .service(handlers::get_current_encounter_in_campaign)
-            .service(handlers::finish_current_encounter_in_campaign)
+            .service(campaign::endpoints::create_campaign)
+            .service(campaign::endpoints::get_campaigns)
+            .service(campaign::endpoints::get_campaign_by_id)
+            .service(character::endpoints::create_character_in_campaign)
+            .service(character::endpoints::get_characters_in_campaign)
+            .service(character::endpoints::get_character_in_campaign_by_id)
+            .service(encounter::endpoints::create_encounter_in_campaign)
+            .service(encounter::endpoints::get_encounters_in_campaign)
+            .service(encounter::endpoints::get_current_encounter_in_campaign)
+            .service(encounter::endpoints::finish_current_encounter_in_campaign)
     })
     .bind("127.0.0.1:8080")?
     .run()

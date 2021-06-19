@@ -4,6 +4,10 @@ use crate::campaign::CampaignId;
 use crate::typedid::{TypedId, TypedIdMarker};
 use crate::user::UserId;
 
+pub mod db;
+pub mod endpoints;
+pub use endpoints::*;
+
 pub type CharacterId = TypedId<Character>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
