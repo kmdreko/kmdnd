@@ -21,6 +21,7 @@ pub enum Error {
     CurrentEncounterDoesNotExist,
 
     // 409
+    ConcurrentModificationDetected,
     CurrentEncounterAlreadyExists(EncounterId),
     CharacterNotInCampaign(CharacterId),
     CharacterNotInEncounter(CharacterId),
@@ -36,9 +37,10 @@ impl Error {
             Error::CampaignDoesNotExist(_) => "E4041000",
             Error::CharacterDoesNotExist(_) => "E4041001",
             Error::CurrentEncounterDoesNotExist => "E4041002",
-            Error::CurrentEncounterAlreadyExists(_) => "E4091000",
-            Error::CharacterNotInCampaign(_) => "E4091001",
-            Error::CharacterNotInEncounter(_) => "E4091002",
+            Error::ConcurrentModificationDetected => "E4091000",
+            Error::CurrentEncounterAlreadyExists(_) => "E4091001",
+            Error::CharacterNotInCampaign(_) => "E4091002",
+            Error::CharacterNotInEncounter(_) => "E4091003",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
         }
@@ -50,6 +52,9 @@ impl Error {
             Error::CharacterDoesNotExist(_) => "The requested character does not exist",
             Error::CurrentEncounterDoesNotExist => {
                 "The requested campaign is not currently in an encounter"
+            }
+            Error::ConcurrentModificationDetected => {
+                "The server detected a concurrent modification"
             }
             Error::CurrentEncounterAlreadyExists(_) => {
                 "The requested campaign is currently in an encounter"
@@ -76,6 +81,7 @@ impl ResponseError for Error {
             Error::CampaignDoesNotExist(_) => StatusCode::NOT_FOUND,
             Error::CharacterDoesNotExist(_) => StatusCode::NOT_FOUND,
             Error::CurrentEncounterDoesNotExist => StatusCode::NOT_FOUND,
+            Error::ConcurrentModificationDetected => StatusCode::CONFLICT,
             Error::CurrentEncounterAlreadyExists(_) => StatusCode::CONFLICT,
             Error::CharacterNotInCampaign(_) => StatusCode::CONFLICT,
             Error::CharacterNotInEncounter(_) => StatusCode::CONFLICT,
@@ -106,6 +112,9 @@ impl Serialize for Error {
                 state.serialize_field("error_meta", character_id)?
             }
             Error::CurrentEncounterDoesNotExist => {
+                state.serialize_field("error_meta", &Value::Null)?
+            }
+            Error::ConcurrentModificationDetected => {
                 state.serialize_field("error_meta", &Value::Null)?
             }
             Error::CurrentEncounterAlreadyExists(encounter_id) => {

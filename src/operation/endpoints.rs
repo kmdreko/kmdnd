@@ -18,6 +18,7 @@ pub struct OperationBody {
     pub encounter_id: Option<EncounterId>,
     pub character_id: CharacterId,
     pub created_at: DateTime<Utc>,
+    pub modified_at: DateTime<Utc>,
     pub operation_type: OperationType,
 }
 
@@ -53,6 +54,7 @@ async fn get_operations_in_current_encounter_in_campaign(
             encounter_id: operation.encounter_id,
             character_id: operation.character_id,
             created_at: operation.created_at,
+            modified_at: operation.modified_at,
             operation_type: operation.operation_type,
         })
         .collect();
@@ -82,12 +84,14 @@ async fn move_in_current_encounter_in_campaign(
         return Err(Error::CharacterNotInEncounter(body.character_id));
     }
 
+    let now = Utc::now();
     let operation = Operation {
         id: OperationId::new(),
         campaign_id: campaign_id,
         encounter_id: Some(encounter.id),
         character_id: body.character_id,
-        created_at: Utc::now(),
+        created_at: now,
+        modified_at: now,
         operation_type: OperationType::Move { feet: body.feet },
     };
 
@@ -99,6 +103,7 @@ async fn move_in_current_encounter_in_campaign(
         encounter_id: operation.encounter_id,
         character_id: operation.character_id,
         created_at: operation.created_at,
+        modified_at: operation.modified_at,
         operation_type: operation.operation_type,
     };
 

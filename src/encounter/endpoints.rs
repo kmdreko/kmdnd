@@ -23,6 +23,7 @@ pub struct EncounterBody {
     pub id: EncounterId,
     pub campaign_id: CampaignId,
     pub created_at: DateTime<Utc>,
+    pub modified_at: DateTime<Utc>,
     pub character_ids: Vec<CharacterId>,
     pub state: EncounterState,
 }
@@ -53,10 +54,12 @@ async fn create_encounter_in_campaign(
         }
     }
 
+    let now = Utc::now();
     let encounter = Encounter {
         id: EncounterId::new(),
         campaign_id,
-        created_at: Utc::now(),
+        created_at: now,
+        modified_at: now,
         character_ids: body.character_ids,
         state: EncounterState::Initiative,
     };
@@ -67,6 +70,7 @@ async fn create_encounter_in_campaign(
         id: encounter.id,
         campaign_id: encounter.campaign_id,
         created_at: encounter.created_at,
+        modified_at: encounter.modified_at,
         character_ids: encounter.character_ids,
         state: encounter.state,
     };
@@ -94,6 +98,7 @@ async fn get_encounters_in_campaign(
             id: encounter.id,
             campaign_id: encounter.campaign_id,
             created_at: encounter.created_at,
+            modified_at: encounter.modified_at,
             character_ids: encounter.character_ids,
             state: encounter.state,
         })
@@ -122,6 +127,7 @@ async fn get_current_encounter_in_campaign(
         id: encounter.id,
         campaign_id: encounter.campaign_id,
         created_at: encounter.created_at,
+        modified_at: encounter.modified_at,
         character_ids: encounter.character_ids,
         state: encounter.state,
     };
@@ -145,7 +151,7 @@ async fn finish_current_encounter_in_campaign(
         .await?
         .ok_or(Error::CurrentEncounterDoesNotExist)?;
 
-    db::update_encounter_state(&db, encounter.id, EncounterState::Finished).await?;
+    db::update_encounter_state(&db, &encounter, EncounterState::Finished).await?;
 
     Ok(Json(SuccessBody {}))
 }

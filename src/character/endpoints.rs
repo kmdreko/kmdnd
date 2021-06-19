@@ -1,5 +1,6 @@
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
+use chrono::{DateTime, Utc};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +18,8 @@ pub struct CharacterBody {
     pub id: CharacterId,
     pub owner: CharacterOwner,
     pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub modified_at: DateTime<Utc>,
 }
 
 #[post("/campaigns/{campaign_id}/characters")]
@@ -33,10 +36,13 @@ async fn create_character_in_campaign(
         .await?
         .ok_or(Error::CampaignDoesNotExist(campaign_id))?;
 
+    let now = Utc::now();
     let character = Character {
         id: CharacterId::new(),
         owner: CharacterOwner::Campaign(campaign_id),
         name: body.name,
+        created_at: now,
+        modified_at: now,
     };
 
     character::db::insert_character(&db, &character).await?;
@@ -45,6 +51,8 @@ async fn create_character_in_campaign(
         id: character.id,
         owner: character.owner,
         name: character.name,
+        created_at: character.created_at,
+        modified_at: character.modified_at,
     };
 
     Ok(Json(body))
@@ -70,6 +78,8 @@ async fn get_characters_in_campaign(
             id: character.id,
             owner: character.owner,
             name: character.name,
+            created_at: character.created_at,
+            modified_at: character.modified_at,
         })
         .collect();
 
@@ -97,6 +107,8 @@ async fn get_character_in_campaign_by_id(
         id: character.id,
         owner: character.owner,
         name: character.name,
+        created_at: character.created_at,
+        modified_at: character.modified_at,
     };
 
     Ok(Json(body))

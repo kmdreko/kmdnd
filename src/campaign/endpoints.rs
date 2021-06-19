@@ -1,5 +1,6 @@
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
+use chrono::{DateTime, Utc};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +20,8 @@ struct CampaignBody {
     pub name: String,
     pub characters: Vec<CharacterBody>,
     pub current_encounter: Option<EncounterBody>,
+    pub created_at: DateTime<Utc>,
+    pub modified_at: DateTime<Utc>,
 }
 
 #[post("/campaigns")]
@@ -28,9 +31,13 @@ async fn create_campaign(
     body: Json<CreateCampaignBody>,
 ) -> Result<Json<CampaignBody>, Error> {
     let body = body.into_inner();
+
+    let now = Utc::now();
     let campaign = Campaign {
         id: CampaignId::new(),
         name: body.name,
+        created_at: now,
+        modified_at: now,
     };
 
     db::insert_campaign(&db, &campaign).await?;
@@ -38,6 +45,8 @@ async fn create_campaign(
     let body = CampaignBody {
         id: campaign.id,
         name: campaign.name,
+        created_at: campaign.created_at,
+        modified_at: campaign.modified_at,
         characters: vec![],
         current_encounter: None,
     };
@@ -55,6 +64,8 @@ async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Er
         body.push(CampaignBody {
             id: campaign.id.clone(),
             name: campaign.name,
+            created_at: campaign.created_at,
+            modified_at: campaign.modified_at,
             characters: character::db::fetch_characters_by_campaign(&db, campaign.id)
                 .await?
                 .into_iter()
@@ -62,6 +73,8 @@ async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Er
                     id: character.id,
                     name: character.name,
                     owner: character.owner,
+                    created_at: character.created_at,
+                    modified_at: character.modified_at,
                 })
                 .collect(),
             current_encounter: encounter::db::fetch_current_encounter_by_campaign(&db, campaign.id)
@@ -70,6 +83,7 @@ async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Er
                     id: encounter.id,
                     campaign_id: encounter.campaign_id,
                     created_at: encounter.created_at,
+                    modified_at: encounter.modified_at,
                     character_ids: encounter.character_ids,
                     state: encounter.state,
                 }),
@@ -94,6 +108,8 @@ async fn get_campaign_by_id(
     let body = CampaignBody {
         id: campaign.id,
         name: campaign.name,
+        created_at: campaign.created_at,
+        modified_at: campaign.modified_at,
         characters: character::db::fetch_characters_by_campaign(&db, campaign.id)
             .await?
             .into_iter()
@@ -101,6 +117,8 @@ async fn get_campaign_by_id(
                 id: character.id,
                 name: character.name,
                 owner: character.owner,
+                created_at: character.created_at,
+                modified_at: character.modified_at,
             })
             .collect(),
         current_encounter: encounter::db::fetch_current_encounter_by_campaign(&db, campaign.id)
@@ -109,6 +127,7 @@ async fn get_campaign_by_id(
                 id: encounter.id,
                 campaign_id: encounter.campaign_id,
                 created_at: encounter.created_at,
+                modified_at: encounter.modified_at,
                 character_ids: encounter.character_ids,
                 state: encounter.state,
             }),

@@ -20,7 +20,10 @@ pub struct Operation {
     pub campaign_id: CampaignId,
     pub encounter_id: Option<EncounterId>,
     pub character_id: CharacterId,
+    #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,
+    #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub modified_at: DateTime<Utc>,
     pub operation_type: OperationType,
 }
 

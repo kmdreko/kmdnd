@@ -1,3 +1,4 @@
+use chrono::Utc;
 use futures::TryStreamExt;
 use mongodb::options::{FindOneOptions, FindOptions};
 use mongodb::{bson, Database};
@@ -5,7 +6,7 @@ use mongodb::{bson, Database};
 use crate::campaign::CampaignId;
 use crate::error::Error;
 
-use super::{Encounter, EncounterId, EncounterState};
+use super::{Encounter, EncounterState};
 
 const ENCOUNTERS: &str = "encounters";
 
@@ -57,16 +58,25 @@ pub async fn fetch_current_encounter_by_campaign(
 #[tracing::instrument(skip(db))]
 pub async fn update_encounter_state(
     db: &Database,
-    encounter_id: EncounterId,
+    encounter: &Encounter,
     state: EncounterState,
 ) -> Result<(), Error> {
-    db.collection::<Encounter>(ENCOUNTERS)
+    let state = bson::to_document(&state)?;
+    let old_modified_at = bson::DateTime::from_chrono(encounter.modified_at);
+    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+
+    let result = db
+        .collection::<Encounter>(ENCOUNTERS)
         .update_one(
-            bson::doc! { "_id": encounter_id },
-            bson::doc! { "$set": { "state": bson::to_document(&state)? } },
+            bson::doc! { "_id": encounter.id, "modified_at": old_modified_at },
+            bson::doc! { "$set": { "state": state, "modified_at": new_modified_at } },
             None,
         )
         .await?;
+
+    if result.matched_count == 0 {
+        return Err(Error::ConcurrentModificationDetected);
+    }
 
     Ok(())
 }

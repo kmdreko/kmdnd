@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
@@ -16,6 +17,10 @@ pub struct Character {
     pub id: CharacterId,
     pub owner: CharacterOwner,
     pub name: String,
+    #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub created_at: DateTime<Utc>,
+    #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub modified_at: DateTime<Utc>,
     // attributes: String,
     // items: Vec<Item>,
     // position: Option<(f32, f32)>,

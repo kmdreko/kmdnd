@@ -17,7 +17,10 @@ pub struct Encounter {
     #[serde(rename = "_id")]
     pub id: EncounterId,
     pub campaign_id: CampaignId,
+    #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,
+    #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub modified_at: DateTime<Utc>,
     pub character_ids: Vec<CharacterId>,
     pub state: EncounterState,
 }
