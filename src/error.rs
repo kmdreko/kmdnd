@@ -1,9 +1,9 @@
 use std::fmt::{Debug, Display};
 
 use actix_web::body::Body;
-use actix_web::error::ResponseError;
+use actix_web::error::{JsonPayloadError, PathError, QueryPayloadError, UrlencodedError};
 use actix_web::http::StatusCode;
-use actix_web::HttpResponse;
+use actix_web::{HttpResponse, ResponseError};
 use mongodb::bson::ser::Error as BsonError;
 use mongodb::error::Error as DatabaseError;
 use serde::{Serialize, Serializer};
@@ -15,11 +15,23 @@ use crate::encounter::EncounterId;
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum Error {
+    // 400
+    #[serde(serialize_with = "display")]
+    InvalidJson(JsonPayloadError),
+    #[serde(serialize_with = "display")]
+    InvalidPath(PathError),
+    #[serde(serialize_with = "display")]
+    InvalidForm(UrlencodedError),
+    #[serde(serialize_with = "display")]
+    InvalidQuery(QueryPayloadError),
+
     // 404
+    PathDoesNotExist,
     CampaignDoesNotExist {
         campaign_id: CampaignId,
     },
-    CharacterDoesNotExist {
+    CharacterDoesNotExistInCampaign {
+        campaign_id: CampaignId,
         character_id: CharacterId,
     },
     CurrentEncounterDoesNotExist {
@@ -52,9 +64,14 @@ pub enum Error {
 impl Error {
     pub fn error_code(&self) -> &'static str {
         match self {
-            Error::CampaignDoesNotExist { .. } => "E4041000",
-            Error::CharacterDoesNotExist { .. } => "E4041001",
-            Error::CurrentEncounterDoesNotExist { .. } => "E4041002",
+            Error::InvalidJson(_) => "E4001000",
+            Error::InvalidPath(_) => "E4001001",
+            Error::InvalidForm(_) => "E4001002",
+            Error::InvalidQuery(_) => "E4001003",
+            Error::PathDoesNotExist => "E4041000",
+            Error::CampaignDoesNotExist { .. } => "E4041001",
+            Error::CharacterDoesNotExistInCampaign { .. } => "E4041002",
+            Error::CurrentEncounterDoesNotExist { .. } => "E4041003",
             Error::ConcurrentModificationDetected => "E4091000",
             Error::CurrentEncounterAlreadyExists { .. } => "E4091001",
             Error::CharacterNotInCampaign { .. } => "E4091002",
@@ -66,8 +83,15 @@ impl Error {
 
     pub fn error_message(&self) -> &'static str {
         match self {
+            Error::InvalidJson(_) => "The given json could not be parsed",
+            Error::InvalidPath(_) => "The given path could not be parsed",
+            Error::InvalidForm(_) => "The given form could not be parsed",
+            Error::InvalidQuery(_) => "The given query could not be parsed",
+            Error::PathDoesNotExist => "The requested path does not exist",
             Error::CampaignDoesNotExist { .. } => "The requested campaign does not exist",
-            Error::CharacterDoesNotExist { .. } => "The requested character does not exist",
+            Error::CharacterDoesNotExistInCampaign { .. } => {
+                "The requested character is not in the campaign"
+            }
             Error::CurrentEncounterDoesNotExist { .. } => {
                 "The requested campaign is not currently in an encounter"
             }
@@ -96,8 +120,13 @@ impl Error {
 impl ResponseError for Error {
     fn status_code(&self) -> StatusCode {
         match self {
+            Error::InvalidJson(_) => StatusCode::BAD_REQUEST,
+            Error::InvalidPath(_) => StatusCode::BAD_REQUEST,
+            Error::InvalidForm(_) => StatusCode::BAD_REQUEST,
+            Error::InvalidQuery(_) => StatusCode::BAD_REQUEST,
+            Error::PathDoesNotExist => StatusCode::NOT_FOUND,
             Error::CampaignDoesNotExist { .. } => StatusCode::NOT_FOUND,
-            Error::CharacterDoesNotExist { .. } => StatusCode::NOT_FOUND,
+            Error::CharacterDoesNotExistInCampaign { .. } => StatusCode::NOT_FOUND,
             Error::CurrentEncounterDoesNotExist { .. } => StatusCode::NOT_FOUND,
             Error::ConcurrentModificationDetected => StatusCode::CONFLICT,
             Error::CurrentEncounterAlreadyExists { .. } => StatusCode::CONFLICT,
@@ -119,7 +148,7 @@ impl ResponseError for Error {
         HttpResponse::build(self.status_code()).json(&Dummy {
             error_code: self.error_code(),
             error_message: self.error_message(),
-            error_meta: &self,
+            error_meta: self,
         })
     }
 }

@@ -99,7 +99,10 @@ async fn get_character_in_campaign_by_id(
     let character =
         character::db::fetch_character_by_campaign_and_id(&db, campaign_id, character_id)
             .await?
-            .ok_or(Error::CharacterDoesNotExist { character_id })?;
+            .ok_or(Error::CharacterDoesNotExistInCampaign {
+                campaign_id,
+                character_id,
+            })?;
 
     Ok(Json(CharacterBody::render(character)))
 }
