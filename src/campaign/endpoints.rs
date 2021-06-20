@@ -4,10 +4,11 @@ use chrono::{DateTime, Utc};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
-use super::{db, Campaign, CampaignId};
 use crate::character::{self, CharacterBody};
 use crate::encounter::{self, EncounterBody};
 use crate::error::Error;
+
+use super::{db, Campaign, CampaignId};
 
 #[derive(Clone, Debug, Deserialize)]
 struct CreateCampaignBody {

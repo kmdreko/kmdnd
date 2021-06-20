@@ -21,7 +21,7 @@ pub struct Character {
     pub created_at: DateTime<Utc>,
     #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub modified_at: DateTime<Utc>,
-    // attributes: String,
+    pub stats: CharacterStats,
     // items: Vec<Item>,
     // position: Option<(f32, f32)>,
     // health: u32,
@@ -94,6 +94,50 @@ impl<'de> Deserialize<'de> for CharacterOwner {
             (None, None) => Err(<D::Error as serde::de::Error>::custom(
                 "character must have a user or campaign",
             )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CharacterStats {
+    pub abilities: CharacterAbilities,
+    pub initiative: u32,
+    pub speed: u32,
+    pub armor_class: u32,
+    pub proficiency_bonus: u32,
+}
+
+impl Default for CharacterStats {
+    fn default() -> CharacterStats {
+        CharacterStats {
+            abilities: CharacterAbilities::default(),
+            initiative: 0,
+            speed: 30,
+            armor_class: 10,
+            proficiency_bonus: 1,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CharacterAbilities {
+    pub strength: u32,
+    pub dexterity: u32,
+    pub constitution: u32,
+    pub intelligence: u32,
+    pub wisdom: u32,
+    pub charisma: u32,
+}
+
+impl Default for CharacterAbilities {
+    fn default() -> CharacterAbilities {
+        CharacterAbilities {
+            strength: 10,
+            dexterity: 10,
+            constitution: 10,
+            intelligence: 10,
+            wisdom: 10,
+            charisma: 10,
         }
     }
 }
