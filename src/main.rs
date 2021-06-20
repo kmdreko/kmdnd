@@ -70,6 +70,8 @@ async fn main() -> Result<(), IoError> {
             .service(encounter::endpoints::get_current_encounter_in_campaign)
             .service(encounter::endpoints::finish_current_encounter_in_campaign)
             .service(operation::endpoints::get_operations_in_current_encounter_in_campaign)
+            .service(operation::endpoints::roll_in_current_encounter_in_campaign)
+            .service(operation::endpoints::begin_current_encounter_in_campaign)
             .service(operation::endpoints::move_in_current_encounter_in_campaign)
             .default_service(web::to(|| Error::PathDoesNotExist.error_response()))
     })

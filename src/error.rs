@@ -53,6 +53,20 @@ pub enum Error {
         encounter_id: EncounterId,
         character_id: CharacterId,
     },
+    CharacterAlreadyRolledInitiative {
+        campaign_id: CampaignId,
+        encounter_id: EncounterId,
+        character_id: CharacterId,
+    },
+    CharactersHaveNotRolledInitiative {
+        campaign_id: CampaignId,
+        encounter_id: EncounterId,
+        character_ids: Vec<CharacterId>,
+    },
+    NoCharactersInEncounter {
+        campaign_id: CampaignId,
+        encounter_id: EncounterId,
+    },
 
     // 500
     #[serde(serialize_with = "display")]
@@ -76,6 +90,9 @@ impl Error {
             Error::CurrentEncounterAlreadyExists { .. } => "E4091001",
             Error::CharacterNotInCampaign { .. } => "E4091002",
             Error::CharacterNotInEncounter { .. } => "E4091003",
+            Error::CharacterAlreadyRolledInitiative { .. } => "E4091004",
+            Error::CharactersHaveNotRolledInitiative { .. } => "E4091005",
+            Error::NoCharactersInEncounter { .. } => "E4091006",
             Error::FailedDatabaseCall { .. } => "E5001000",
             Error::FailedToSerializeToBson { .. } => "E5001001",
         }
@@ -107,6 +124,15 @@ impl Error {
             Error::CharacterNotInEncounter { .. } => {
                 "The requested operation uses a character that is not in the encounter"
             }
+            Error::CharacterAlreadyRolledInitiative { .. } => {
+                "The requested character has already rolled initiative"
+            }
+            Error::CharactersHaveNotRolledInitiative { .. } => {
+                "The requested encounter has characters that have not rolled initiative"
+            }
+            Error::NoCharactersInEncounter { .. } => {
+                "The requested encounter has no characters to start with"
+            }
             Error::FailedDatabaseCall { .. } => {
                 "An error occurred when communicating with the database"
             }
@@ -132,6 +158,9 @@ impl ResponseError for Error {
             Error::CurrentEncounterAlreadyExists { .. } => StatusCode::CONFLICT,
             Error::CharacterNotInCampaign { .. } => StatusCode::CONFLICT,
             Error::CharacterNotInEncounter { .. } => StatusCode::CONFLICT,
+            Error::CharacterAlreadyRolledInitiative { .. } => StatusCode::CONFLICT,
+            Error::CharactersHaveNotRolledInitiative { .. } => StatusCode::CONFLICT,
+            Error::NoCharactersInEncounter { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }

@@ -39,5 +39,20 @@ pub enum OperationType {
     Move { feet: f32 },
     Action { name: String },
     Bonus { name: String },
-    Roll { skill: String },
+    Roll { roll: Roll, result: i32 },
+}
+
+impl OperationType {
+    pub fn as_roll(&self) -> Option<(Roll, i32)> {
+        match self {
+            &OperationType::Roll { roll, result } => Some((roll, result)),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum Roll {
+    Initiative,
 }

@@ -24,7 +24,7 @@ pub struct Character {
     pub stats: CharacterStats,
     // items: Vec<Item>,
     // position: Option<(f32, f32)>,
-    // health: u32,
+    // health: i32,
     // effects: Vec<Effect>,
 }
 

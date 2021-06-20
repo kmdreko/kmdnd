@@ -2,14 +2,15 @@ use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
 use chrono::{DateTime, Utc};
 use mongodb::Database;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::{self, CampaignId};
-use crate::character::CharacterId;
-use crate::encounter::{self, EncounterId};
+use crate::character::{self, CharacterId};
+use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
 
-use super::{db, Operation, OperationId, OperationType};
+use super::{db, Operation, OperationId, OperationType, Roll};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct OperationBody {
@@ -42,6 +43,22 @@ pub struct MoveBody {
     pub feet: f32,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct RollBody {
+    pub character_id: CharacterId,
+    pub roll: Roll,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RollResultBody {
+    result: i32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BeginEncounterResultBody {
+    turn_order: Vec<CharacterId>,
+}
+
 #[get("/campaigns/{campaign_id}/encounters/CURRENT/operations")]
 #[tracing::instrument(skip(db))]
 async fn get_operations_in_current_encounter_in_campaign(
@@ -64,6 +81,155 @@ async fn get_operations_in_current_encounter_in_campaign(
         .into_iter()
         .map(|operation| OperationBody::render(operation))
         .collect();
+
+    Ok(Json(body))
+}
+
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/roll")]
+#[tracing::instrument(skip(db))]
+async fn roll_in_current_encounter_in_campaign(
+    db: Data<Database>,
+    params: Path<CampaignId>,
+    body: Json<RollBody>,
+) -> Result<Json<RollResultBody>, Error> {
+    let campaign_id = params.into_inner();
+    let body = body.into_inner();
+
+    campaign::db::fetch_campaign_by_id(&db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+
+    let encounter = encounter::db::fetch_current_encounter_by_campaign(&db, campaign_id)
+        .await?
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
+
+    let character =
+        character::db::fetch_character_by_campaign_and_id(&db, campaign_id, body.character_id)
+            .await?
+            .ok_or(Error::CharacterNotInCampaign {
+                campaign_id,
+                character_id: body.character_id,
+            })?;
+
+    if !encounter.character_ids.contains(&body.character_id) {
+        return Err(Error::CharacterNotInEncounter {
+            campaign_id,
+            encounter_id: encounter.id,
+            character_id: body.character_id,
+        });
+    }
+
+    let operations = db::fetch_operations_by_encounter(&db, encounter.id).await?;
+    let character_already_rolled =
+        operations
+            .iter()
+            .any(|operation| match operation.operation_type {
+                OperationType::Roll { roll, .. } => {
+                    operation.character_id == body.character_id && roll == Roll::Initiative
+                }
+                _ => false,
+            });
+    if character_already_rolled {
+        return Err(Error::CharacterAlreadyRolledInitiative {
+            campaign_id,
+            encounter_id: encounter.id,
+            character_id: body.character_id,
+        });
+    }
+
+    let result = rand::thread_rng().gen_range(1..=20) + character.stats.initiative;
+
+    let now = Utc::now();
+    let operation = Operation {
+        id: OperationId::new(),
+        campaign_id: campaign_id,
+        encounter_id: Some(encounter.id),
+        character_id: body.character_id,
+        created_at: now,
+        modified_at: now,
+        operation_type: OperationType::Roll {
+            roll: Roll::Initiative,
+            result,
+        },
+    };
+
+    db::insert_operation(&db, &operation).await?;
+
+    Ok(Json(RollResultBody { result }))
+}
+
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/begin")]
+#[tracing::instrument(skip(db))]
+async fn begin_current_encounter_in_campaign(
+    db: Data<Database>,
+    params: Path<CampaignId>,
+) -> Result<Json<BeginEncounterResultBody>, Error> {
+    let campaign_id = params.into_inner();
+
+    campaign::db::fetch_campaign_by_id(&db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+
+    let encounter = encounter::db::fetch_current_encounter_by_campaign(&db, campaign_id)
+        .await?
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
+
+    let operations = db::fetch_operations_by_encounter(&db, encounter.id).await?;
+    let mut initiative_rolls: Vec<(CharacterId, i32)> = operations
+        .iter()
+        .filter_map(|operation| {
+            operation
+                .operation_type
+                .as_roll()
+                .map(|(roll, result)| (operation.character_id, roll, result))
+        })
+        .filter(|(_, roll, _)| *roll == Roll::Initiative)
+        .map(|(character_id, _, result)| (character_id, result))
+        .collect();
+
+    let uninitiated_character_ids: Vec<_> = encounter
+        .character_ids
+        .iter()
+        .copied()
+        .filter(|character_id| {
+            !initiative_rolls
+                .iter()
+                .any(|(c_id, _)| c_id == character_id)
+        })
+        .collect();
+
+    if uninitiated_character_ids.len() > 0 {
+        return Err(Error::CharactersHaveNotRolledInitiative {
+            campaign_id,
+            encounter_id: encounter.id,
+            character_ids: uninitiated_character_ids,
+        });
+    }
+
+    initiative_rolls.sort_by_key(|(_, result)| *result);
+    initiative_rolls.reverse();
+    let turn_order: Vec<_> = initiative_rolls
+        .into_iter()
+        .map(|(character_id, _)| character_id)
+        .collect();
+
+    let first_character = turn_order.first().ok_or(Error::NoCharactersInEncounter {
+        campaign_id,
+        encounter_id: encounter.id,
+    })?;
+
+    encounter::db::update_encounter_state_and_characters(
+        &db,
+        &encounter,
+        EncounterState::Turn {
+            round: 0,
+            character_id: *first_character,
+        },
+        &turn_order,
+    )
+    .await?;
+
+    let body = BeginEncounterResultBody { turn_order };
 
     Ok(Json(body))
 }

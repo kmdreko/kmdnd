@@ -10,7 +10,7 @@ pub mod endpoints;
 pub use endpoints::*;
 
 pub type EncounterId = TypedId<Encounter>;
-pub type Round = u32;
+pub type Round = i32;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Encounter {

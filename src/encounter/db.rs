@@ -4,6 +4,7 @@ use mongodb::options::{FindOneOptions, FindOptions};
 use mongodb::{bson, Database};
 
 use crate::campaign::CampaignId;
+use crate::character::CharacterId;
 use crate::error::Error;
 
 use super::{Encounter, EncounterState};
@@ -70,6 +71,38 @@ pub async fn update_encounter_state(
         .update_one(
             bson::doc! { "_id": encounter.id, "modified_at": old_modified_at },
             bson::doc! { "$set": { "state": state, "modified_at": new_modified_at } },
+            None,
+        )
+        .await?;
+
+    if result.matched_count == 0 {
+        return Err(Error::ConcurrentModificationDetected);
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn update_encounter_state_and_characters(
+    db: &Database,
+    encounter: &Encounter,
+    state: EncounterState,
+    character_ids: &Vec<CharacterId>,
+) -> Result<(), Error> {
+    let state = bson::to_document(&state)?;
+    let character_ids = bson::to_bson(character_ids)?;
+    let old_modified_at = bson::DateTime::from_chrono(encounter.modified_at);
+    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+
+    let result = db
+        .collection::<Encounter>(ENCOUNTERS)
+        .update_one(
+            bson::doc! { "_id": encounter.id, "modified_at": old_modified_at },
+            bson::doc! { "$set": {
+                "state": state,
+                "character_ids": character_ids,
+                "modified_at": new_modified_at
+            } },
             None,
         )
         .await?;
