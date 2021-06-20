@@ -10,6 +10,22 @@ use super::Operation;
 
 const OPERATIONS: &str = "operations";
 
+pub async fn initialize(db: &Database) -> Result<(), Error> {
+    db.run_command(
+        bson::doc! {
+            "createIndexes": OPERATIONS,
+            "indexes": [
+                { "key": { "campaign_id": 1, "created_at": 1 }, "name": "by_campaign_id" },
+                { "key": { "encounter_id": 1, "created_at": 1 }, "name": "by_encounter_id" },
+            ]
+        },
+        None,
+    )
+    .await?;
+
+    Ok(())
+}
+
 #[tracing::instrument(skip(db))]
 pub async fn insert_operation(db: &Database, operation: &Operation) -> Result<(), Error> {
     let doc = bson::to_document(operation)?;

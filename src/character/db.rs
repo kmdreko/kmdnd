@@ -8,6 +8,22 @@ use super::{Character, CharacterId};
 
 const CHARACTERS: &str = "characters";
 
+pub async fn initialize(db: &Database) -> Result<(), Error> {
+    db.run_command(
+        bson::doc! {
+            "createIndexes": CHARACTERS,
+            "indexes": [
+                { "key": { "owner.campaign_id": 1 }, "name": "by_campaign_id" },
+                { "key": { "owner.user_id": 1 }, "name": "by_user_id" },
+            ]
+        },
+        None,
+    )
+    .await?;
+
+    Ok(())
+}
+
 #[tracing::instrument(skip(db))]
 pub async fn insert_character(db: &Database, character: &Character) -> Result<(), Error> {
     let doc = bson::to_document(character)?;

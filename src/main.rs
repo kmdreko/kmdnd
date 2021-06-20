@@ -37,6 +37,19 @@ async fn main() -> Result<(), IoError> {
         .await
         .map_err(|err| IoError::new(ErrorKind::Other, err))?;
 
+    campaign::db::initialize(&db)
+        .await
+        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
+    character::db::initialize(&db)
+        .await
+        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
+    encounter::db::initialize(&db)
+        .await
+        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
+    operation::db::initialize(&db)
+        .await
+        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
+
     seed::seed(&db).await;
 
     HttpServer::new(move || {

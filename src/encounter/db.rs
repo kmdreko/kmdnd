@@ -11,6 +11,21 @@ use super::{Encounter, EncounterState};
 
 const ENCOUNTERS: &str = "encounters";
 
+pub async fn initialize(db: &Database) -> Result<(), Error> {
+    db.run_command(
+        bson::doc! {
+            "createIndexes": ENCOUNTERS,
+            "indexes": [
+                { "key": { "campaign_id": 1, "created_at": 1 }, "name": "by_campaign_id" },
+            ]
+        },
+        None,
+    )
+    .await?;
+
+    Ok(())
+}
+
 #[tracing::instrument(skip(db))]
 pub async fn insert_encounter(db: &Database, encounter: &Encounter) -> Result<(), Error> {
     let doc = bson::to_document(encounter)?;

@@ -200,6 +200,20 @@ impl From<BsonError> for Error {
     }
 }
 
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::InvalidJson(err) => Some(err),
+            Error::InvalidPath(err) => Some(err),
+            Error::InvalidForm(err) => Some(err),
+            Error::InvalidQuery(err) => Some(err),
+            Error::FailedDatabaseCall(err) => Some(err),
+            Error::FailedToSerializeToBson(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
 fn display<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
 where
     T: Display,

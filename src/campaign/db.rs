@@ -7,6 +7,10 @@ use super::{Campaign, CampaignId};
 
 const CAMPAIGNS: &str = "campaigns";
 
+pub async fn initialize(_db: &Database) -> Result<(), Error> {
+    Ok(())
+}
+
 #[tracing::instrument(skip(db))]
 pub async fn insert_campaign(db: &Database, campaign: &Campaign) -> Result<(), Error> {
     let doc = bson::to_document(campaign)?;
