@@ -101,10 +101,10 @@ impl<'de> Deserialize<'de> for CharacterOwner {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CharacterStats {
     pub abilities: CharacterAbilities,
-    pub initiative: u32,
-    pub speed: u32,
-    pub armor_class: u32,
-    pub proficiency_bonus: u32,
+    pub initiative: i32,
+    pub speed: i32,
+    pub armor_class: i32,
+    pub proficiency_bonus: i32,
 }
 
 impl Default for CharacterStats {
@@ -121,12 +121,12 @@ impl Default for CharacterStats {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CharacterAbilities {
-    pub strength: u32,
-    pub dexterity: u32,
-    pub constitution: u32,
-    pub intelligence: u32,
-    pub wisdom: u32,
-    pub charisma: u32,
+    pub strength: i32,
+    pub dexterity: i32,
+    pub constitution: i32,
+    pub intelligence: i32,
+    pub wisdom: i32,
+    pub charisma: i32,
 }
 
 impl Default for CharacterAbilities {

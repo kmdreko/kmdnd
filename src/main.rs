@@ -12,6 +12,7 @@ mod character;
 mod encounter;
 mod error;
 mod operation;
+mod seed;
 mod typedid;
 mod user;
 
@@ -35,6 +36,8 @@ async fn main() -> Result<(), IoError> {
     db.run_command(bson::doc! { "ping": 1 }, None)
         .await
         .map_err(|err| IoError::new(ErrorKind::Other, err))?;
+
+    seed::seed(&db).await;
 
     HttpServer::new(move || {
         App::new()
