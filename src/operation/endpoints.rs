@@ -42,7 +42,7 @@ pub struct MoveBody {
     pub feet: f32,
 }
 
-#[get("/campaigns/{campaign_id}/encounters/current/operations")]
+#[get("/campaigns/{campaign_id}/encounters/CURRENT/operations")]
 #[tracing::instrument(skip(db))]
 async fn get_operations_in_current_encounter_in_campaign(
     db: Data<Database>,
@@ -68,7 +68,7 @@ async fn get_operations_in_current_encounter_in_campaign(
     Ok(Json(body))
 }
 
-#[post("/campaigns/{campaign_id}/encounters/current/move")]
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/move")]
 #[tracing::instrument(skip(db))]
 async fn move_in_current_encounter_in_campaign(
     db: Data<Database>,

@@ -34,7 +34,7 @@ impl TypedIdMarker for Operation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum OperationType {
     Move { feet: f32 },
     Action { name: String },

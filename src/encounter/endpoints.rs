@@ -110,7 +110,7 @@ async fn get_encounters_in_campaign(
     Ok(Json(body))
 }
 
-#[get("/campaigns/{campaign_id}/encounters/current")]
+#[get("/campaigns/{campaign_id}/encounters/CURRENT")]
 #[tracing::instrument(skip(db))]
 async fn get_current_encounter_in_campaign(
     db: Data<Database>,
@@ -129,7 +129,7 @@ async fn get_current_encounter_in_campaign(
     Ok(Json(EncounterBody::render(encounter)))
 }
 
-#[post("/campaigns/{campaign_id}/encounters/current/finish")]
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/finish")]
 #[tracing::instrument(skip(db))]
 async fn finish_current_encounter_in_campaign(
     db: Data<Database>,
