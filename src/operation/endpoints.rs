@@ -387,7 +387,7 @@ async fn take_action_in_current_encounter_in_campaign(
                 .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
 
             let hit_roll = rand::thread_rng().gen_range(1..=20);
-            let damage = if hit_roll > target_character.stats.armor_class {
+            let damage = if hit_roll >= target_character.stats.armor_class {
                 Some(weapon.damage_amount.roll())
             } else {
                 None

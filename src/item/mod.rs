@@ -1,6 +1,7 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
+use crate::character::Character;
 use crate::typedid::{TypedId, TypedIdMarker};
 
 pub mod db;
@@ -36,6 +37,13 @@ impl ItemType {
     pub fn as_weapon(&self) -> Option<&Weapon> {
         match self {
             ItemType::Weapon(weapon) => Some(weapon),
+            _ => None,
+        }
+    }
+
+    pub fn as_armor(&self) -> Option<&Armor> {
+        match self {
+            ItemType::Armor(armor) => Some(armor),
             _ => None,
         }
     }
@@ -97,4 +105,29 @@ impl Dice {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Armor {}
+pub struct Armor {
+    pub base_armor_class: i32,
+    pub armor_type: ArmorType,
+    pub strength_requirement: Option<i32>,
+    pub stealth_disadvantage: bool,
+}
+
+impl Armor {
+    pub fn effective_armor_class(&self, character: &Character) -> i32 {
+        let ac_from_dex = match self.armor_type {
+            ArmorType::Light => character.stats.abilities.dexterity_modifier(),
+            ArmorType::Medium => i32::min(2, character.stats.abilities.dexterity_modifier()),
+            ArmorType::Heavy => 0,
+        };
+
+        self.base_armor_class + ac_from_dex
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum ArmorType {
+    Light,
+    Medium,
+    Heavy,
+}

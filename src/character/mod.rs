@@ -1,8 +1,13 @@
+use std::future;
+
 use chrono::{DateTime, Utc};
+use futures::{stream, StreamExt, TryStreamExt};
+use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
-use crate::item::ItemId;
+use crate::error::Error;
+use crate::item::{self, ItemId};
 use crate::typedid::{TypedId, TypedIdMarker};
 use crate::user::UserId;
 
@@ -23,10 +28,35 @@ pub struct Character {
     #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub modified_at: DateTime<Utc>,
     pub stats: CharacterStats,
-    pub equipment: Vec<ItemWithQuantity>,
+    pub equipment: Vec<EquipmentEntry>,
     // position: Option<(f32, f32)>,
     // health: i32,
     // effects: Vec<Effect>,
+}
+
+impl Character {
+    pub async fn recalculate_stats(&mut self, db: &Database) -> Result<(), Error> {
+        let items: Vec<_> = stream::iter(&self.equipment)
+            .filter(|entry| future::ready(entry.equiped))
+            .then(|entry| item::db::fetch_item_by_id(db, entry.item_id))
+            .try_collect()
+            .await?;
+
+        let armor: Vec<_> = items
+            .iter()
+            .filter_map(|item| item.as_ref())
+            .filter_map(|item| item.item_type.as_armor())
+            .collect();
+
+        let mut armor_class = 10;
+        for piece in armor {
+            armor_class += piece.effective_armor_class(self);
+        }
+
+        self.stats.armor_class = armor_class;
+
+        Ok(())
+    }
 }
 
 impl TypedIdMarker for Character {
@@ -130,6 +160,12 @@ pub struct CharacterAbilities {
     pub charisma: i32,
 }
 
+impl CharacterAbilities {
+    pub fn dexterity_modifier(&self) -> i32 {
+        (self.dexterity - 10) / 2
+    }
+}
+
 impl Default for CharacterAbilities {
     fn default() -> CharacterAbilities {
         CharacterAbilities {
@@ -144,7 +180,8 @@ impl Default for CharacterAbilities {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ItemWithQuantity {
+pub struct EquipmentEntry {
+    pub equiped: bool,
     pub quantity: i32,
     pub item_id: ItemId,
 }

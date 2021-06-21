@@ -76,7 +76,7 @@ async fn create_character_in_campaign(
         .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
     let now = Utc::now();
-    let character = Character {
+    let mut character = Character {
         id: CharacterId::new(),
         owner: CharacterOwner::Campaign(campaign_id),
         name: body.name,
@@ -85,6 +85,7 @@ async fn create_character_in_campaign(
         stats: Default::default(),
         equipment: vec![],
     };
+    character.recalculate_stats(&db).await?;
 
     db::insert_character(&db, &character).await?;
 

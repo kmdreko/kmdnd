@@ -2,11 +2,15 @@ use chrono::Utc;
 use mongodb::Database;
 
 use crate::campaign::{self, Campaign};
-use crate::character::{self, Character, CharacterOwner, CharacterStats, ItemWithQuantity};
+use crate::character::{self, Character, CharacterOwner, CharacterStats, EquipmentEntry};
 use crate::encounter::{self, Encounter, EncounterId, EncounterState};
-use crate::item::{self, DamageType, Dice, Item, ItemType, Weapon, WeaponProperty};
+use crate::item::{
+    self, Armor, ArmorType, DamageType, Dice, Item, ItemId, ItemType, Weapon, WeaponProperty,
+};
 
 pub async fn seed(db: &Database) {
+    db.drop(None).await.unwrap();
+
     let now = Utc::now();
     let campaign_id = "CPN-16E77539-8873-4C8A-BCA3-2036010474AD".parse().unwrap();
     let campaign = Campaign {
@@ -47,35 +51,82 @@ pub async fn seed(db: &Database) {
                 ],
             }),
         },
+        Item {
+            id: ItemId::new(),
+            name: "Scale mail".to_string(),
+            value: 5000,
+            weight: 45,
+            item_type: ItemType::Armor(Armor {
+                base_armor_class: 4,
+                armor_type: ArmorType::Medium,
+                strength_requirement: None,
+                stealth_disadvantage: true,
+            }),
+        },
+        Item {
+            id: ItemId::new(),
+            name: "Studded leather".to_string(),
+            value: 4500,
+            weight: 13,
+            item_type: ItemType::Armor(Armor {
+                base_armor_class: 2,
+                armor_type: ArmorType::Light,
+                strength_requirement: None,
+                stealth_disadvantage: false,
+            }),
+        },
     ];
 
+    for item in &items {
+        item::db::insert_item(db, item).await.unwrap();
+    }
+
     let character1_id = "CHR-33957EB6-0EE7-487F-A087-E55C335BD63C".parse().unwrap();
-    let character1 = Character {
+    let mut character1 = Character {
         id: character1_id,
         owner: CharacterOwner::Campaign(campaign_id),
         name: "Mr. Understanding".to_string(),
         created_at: now,
         modified_at: now,
         stats: CharacterStats::default(),
-        equipment: vec![ItemWithQuantity {
-            quantity: 1,
-            item_id: items[0].id,
-        }],
+        equipment: vec![
+            EquipmentEntry {
+                equiped: true,
+                quantity: 1,
+                item_id: items[0].id,
+            },
+            EquipmentEntry {
+                equiped: true,
+                quantity: 1,
+                item_id: items[2].id,
+            },
+        ],
     };
 
     let character2_id = "CHR-DE3168FD-2730-47A2-BFE0-E53C79DD57A0".parse().unwrap();
-    let character2 = Character {
+    let mut character2 = Character {
         id: character2_id,
         owner: CharacterOwner::Campaign(campaign_id),
         name: "The Chi Bee".to_string(),
         created_at: now,
         modified_at: now,
         stats: CharacterStats::default(),
-        equipment: vec![ItemWithQuantity {
-            quantity: 1,
-            item_id: items[1].id,
-        }],
+        equipment: vec![
+            EquipmentEntry {
+                equiped: true,
+                quantity: 1,
+                item_id: items[1].id,
+            },
+            EquipmentEntry {
+                equiped: true,
+                quantity: 1,
+                item_id: items[3].id,
+            },
+        ],
     };
+
+    character1.recalculate_stats(db).await.unwrap();
+    character2.recalculate_stats(db).await.unwrap();
 
     let encounter = Encounter {
         id: EncounterId::new(),
@@ -85,8 +136,6 @@ pub async fn seed(db: &Database) {
         modified_at: now,
         state: EncounterState::Initiative,
     };
-
-    db.drop(None).await.unwrap();
 
     campaign::db::insert_campaign(db, &campaign).await.unwrap();
     character::db::insert_character(db, &character1)
@@ -98,8 +147,4 @@ pub async fn seed(db: &Database) {
     encounter::db::insert_encounter(db, &encounter)
         .await
         .unwrap();
-
-    for item in items {
-        item::db::insert_item(db, &item).await.unwrap();
-    }
 }
