@@ -1,6 +1,7 @@
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
 use chrono::{DateTime, Utc};
+use futures::{stream, StreamExt, TryStreamExt};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
@@ -27,16 +28,16 @@ struct CampaignBody {
 
 impl CampaignBody {
     pub async fn render(db: &Database, campaign: Campaign) -> Result<CampaignBody, Error> {
+        let characters = character::db::fetch_characters_by_campaign(&db, campaign.id).await?;
         Ok(CampaignBody {
             id: campaign.id,
             name: campaign.name,
             created_at: campaign.created_at,
             modified_at: campaign.modified_at,
-            characters: character::db::fetch_characters_by_campaign(&db, campaign.id)
-                .await?
-                .into_iter()
-                .map(|character| CharacterBody::render(character))
-                .collect(),
+            characters: stream::iter(characters)
+                .then(|character| CharacterBody::render(db, character))
+                .try_collect()
+                .await?,
             current_encounter: encounter::db::fetch_current_encounter_by_campaign(&db, campaign.id)
                 .await?
                 .map(|encounter| EncounterBody::render(encounter)),
@@ -79,10 +80,10 @@ async fn create_campaign(
 async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Error> {
     let campaigns = db::fetch_campaigns(&db).await?;
 
-    let mut body = vec![];
-    for campaign in campaigns {
-        body.push(CampaignBody::render(&db, campaign).await?);
-    }
+    let body = stream::iter(campaigns)
+        .then(|campaign| CampaignBody::render(&db, campaign))
+        .try_collect()
+        .await?;
 
     Ok(Json(body))
 }

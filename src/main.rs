@@ -11,6 +11,7 @@ mod campaign;
 mod character;
 mod encounter;
 mod error;
+mod item;
 mod operation;
 mod seed;
 mod typedid;
@@ -47,6 +48,9 @@ async fn main() -> Result<(), IoError> {
         .await
         .map_err(|err| IoError::new(ErrorKind::Other, err))?;
     operation::db::initialize(&db)
+        .await
+        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
+    item::db::initialize(&db)
         .await
         .map_err(|err| IoError::new(ErrorKind::Other, err))?;
 
@@ -86,6 +90,8 @@ async fn main() -> Result<(), IoError> {
             .service(operation::endpoints::roll_in_current_encounter_in_campaign)
             .service(operation::endpoints::begin_current_encounter_in_campaign)
             .service(operation::endpoints::move_in_current_encounter_in_campaign)
+            .service(item::endpoints::get_items)
+            .service(item::endpoints::get_item_by_id)
             .default_service(web::to(|| Error::PathDoesNotExist.error_response()))
     })
     .bind("127.0.0.1:8080")?

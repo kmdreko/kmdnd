@@ -1,11 +1,13 @@
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
 use chrono::{DateTime, Utc};
+use futures::{stream, StreamExt, TryStreamExt};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::{self, CampaignId};
 use crate::error::Error;
+use crate::item::{self, ItemBody};
 
 use super::{db, Character, CharacterId, CharacterOwner, CharacterStats};
 
@@ -22,19 +24,41 @@ pub struct CharacterBody {
     pub created_at: DateTime<Utc>,
     pub modified_at: DateTime<Utc>,
     pub stats: CharacterStats,
+    pub equipment: Vec<ItemWithQuantityBody>,
 }
 
 impl CharacterBody {
-    pub fn render(character: Character) -> CharacterBody {
-        CharacterBody {
+    pub async fn render(db: &Database, character: Character) -> Result<CharacterBody, Error> {
+        let mut equipment = vec![];
+        for entry in character.equipment {
+            let item = item::db::fetch_item_by_id(db, entry.item_id).await?.ok_or(
+                Error::ItemDoesNotExist {
+                    item_id: entry.item_id,
+                },
+            )?;
+            let body = ItemBody::render(item);
+            equipment.push(ItemWithQuantityBody {
+                quantity: entry.quantity,
+                item: body,
+            });
+        }
+
+        Ok(CharacterBody {
             id: character.id,
             owner: character.owner,
             name: character.name,
             created_at: character.created_at,
             modified_at: character.modified_at,
             stats: character.stats,
-        }
+            equipment: equipment,
+        })
     }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ItemWithQuantityBody {
+    pub quantity: i32,
+    pub item: ItemBody,
 }
 
 #[post("/campaigns/{campaign_id}/characters")]
@@ -59,11 +83,12 @@ async fn create_character_in_campaign(
         created_at: now,
         modified_at: now,
         stats: Default::default(),
+        equipment: vec![],
     };
 
     db::insert_character(&db, &character).await?;
 
-    Ok(Json(CharacterBody::render(character)))
+    Ok(Json(CharacterBody::render(&db, character).await?))
 }
 
 #[get("/campaigns/{campaign_id}/characters")]
@@ -80,10 +105,10 @@ async fn get_characters_in_campaign(
 
     let characters = db::fetch_characters_by_campaign(&db, campaign_id).await?;
 
-    let body = characters
-        .into_iter()
-        .map(|character| CharacterBody::render(character))
-        .collect();
+    let body = stream::iter(characters)
+        .then(|character| CharacterBody::render(&db, character))
+        .try_collect()
+        .await?;
 
     Ok(Json(body))
 }
@@ -107,5 +132,5 @@ async fn get_character_in_campaign_by_id(
             character_id,
         })?;
 
-    Ok(Json(CharacterBody::render(character)))
+    Ok(Json(CharacterBody::render(&db, character).await?))
 }

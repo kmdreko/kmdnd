@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
+use crate::item::ItemId;
 use crate::typedid::{TypedId, TypedIdMarker};
 use crate::user::UserId;
 
@@ -22,7 +23,7 @@ pub struct Character {
     #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub modified_at: DateTime<Utc>,
     pub stats: CharacterStats,
-    // items: Vec<Item>,
+    pub equipment: Vec<ItemWithQuantity>,
     // position: Option<(f32, f32)>,
     // health: i32,
     // effects: Vec<Effect>,
@@ -140,4 +141,10 @@ impl Default for CharacterAbilities {
             charisma: 10,
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ItemWithQuantity {
+    pub quantity: i32,
+    pub item_id: ItemId,
 }

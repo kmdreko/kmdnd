@@ -11,6 +11,7 @@ use serde::{Serialize, Serializer};
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
 use crate::encounter::EncounterId;
+use crate::item::ItemId;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -36,6 +37,9 @@ pub enum Error {
     },
     CurrentEncounterDoesNotExist {
         campaign_id: CampaignId,
+    },
+    ItemDoesNotExist {
+        item_id: ItemId,
     },
 
     // 409
@@ -86,6 +90,7 @@ impl Error {
             Error::CampaignDoesNotExist { .. } => "E4041001",
             Error::CharacterDoesNotExistInCampaign { .. } => "E4041002",
             Error::CurrentEncounterDoesNotExist { .. } => "E4041003",
+            Error::ItemDoesNotExist { .. } => "E4041004",
             Error::ConcurrentModificationDetected => "E4091000",
             Error::CurrentEncounterAlreadyExists { .. } => "E4091001",
             Error::CharacterNotInCampaign { .. } => "E4091002",
@@ -112,6 +117,7 @@ impl Error {
             Error::CurrentEncounterDoesNotExist { .. } => {
                 "The requested campaign is not currently in an encounter"
             }
+            Error::ItemDoesNotExist { .. } => "The requested item does not exist",
             Error::ConcurrentModificationDetected => {
                 "The server detected a concurrent modification"
             }
@@ -154,6 +160,7 @@ impl ResponseError for Error {
             Error::CampaignDoesNotExist { .. } => StatusCode::NOT_FOUND,
             Error::CharacterDoesNotExistInCampaign { .. } => StatusCode::NOT_FOUND,
             Error::CurrentEncounterDoesNotExist { .. } => StatusCode::NOT_FOUND,
+            Error::ItemDoesNotExist { .. } => StatusCode::NOT_FOUND,
             Error::ConcurrentModificationDetected => StatusCode::CONFLICT,
             Error::CurrentEncounterAlreadyExists { .. } => StatusCode::CONFLICT,
             Error::CharacterNotInCampaign { .. } => StatusCode::CONFLICT,
