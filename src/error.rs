@@ -71,6 +71,15 @@ pub enum Error {
         campaign_id: CampaignId,
         encounter_id: EncounterId,
     },
+    NotThisPlayersTurn {
+        campaign_id: CampaignId,
+        encounter_id: EncounterId,
+        request_character_id: CharacterId,
+        current_character_id: CharacterId,
+    },
+    ItemIsNotAWeapon {
+        item_id: ItemId,
+    },
 
     // 500
     #[serde(serialize_with = "display")]
@@ -98,6 +107,8 @@ impl Error {
             Error::CharacterAlreadyRolledInitiative { .. } => "E4091004",
             Error::CharactersHaveNotRolledInitiative { .. } => "E4091005",
             Error::NoCharactersInEncounter { .. } => "E4091006",
+            Error::NotThisPlayersTurn { .. } => "E4091007",
+            Error::ItemIsNotAWeapon { .. } => "E4091008",
             Error::FailedDatabaseCall { .. } => "E5001000",
             Error::FailedToSerializeToBson { .. } => "E5001001",
         }
@@ -139,6 +150,10 @@ impl Error {
             Error::NoCharactersInEncounter { .. } => {
                 "The requested encounter has no characters to start with"
             }
+            Error::NotThisPlayersTurn { .. } => {
+                "The requested player does not have permission for this turn"
+            }
+            Error::ItemIsNotAWeapon { .. } => "The provided item was expected to be a weapon",
             Error::FailedDatabaseCall { .. } => {
                 "An error occurred when communicating with the database"
             }
@@ -168,6 +183,8 @@ impl ResponseError for Error {
             Error::CharacterAlreadyRolledInitiative { .. } => StatusCode::CONFLICT,
             Error::CharactersHaveNotRolledInitiative { .. } => StatusCode::CONFLICT,
             Error::NoCharactersInEncounter { .. } => StatusCode::CONFLICT,
+            Error::NotThisPlayersTurn { .. } => StatusCode::CONFLICT,
+            Error::ItemIsNotAWeapon { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }

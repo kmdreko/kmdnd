@@ -4,7 +4,7 @@ use mongodb::Database;
 use crate::campaign::{self, Campaign};
 use crate::character::{self, Character, CharacterOwner, CharacterStats, ItemWithQuantity};
 use crate::encounter::{self, Encounter, EncounterId, EncounterState};
-use crate::item::{self, DamageType, Dice, Item, ItemId, ItemType, Weapon, WeaponProperty};
+use crate::item::{self, DamageType, Dice, Item, ItemType, Weapon, WeaponProperty};
 
 pub async fn seed(db: &Database) {
     let now = Utc::now();
@@ -16,9 +16,11 @@ pub async fn seed(db: &Database) {
         modified_at: now,
     };
 
+    let item1_id = "ITM-5EA81D0A-9788-4B8A-82D9-1A0D636B53CE".parse().unwrap();
+    let item2_id = "ITM-5C903E93-2524-4876-B4C8-816B98D0C77B".parse().unwrap();
     let items = vec![
         Item {
-            id: ItemId::new(),
+            id: item1_id,
             name: "Club".to_string(),
             value: 10,
             weight: 2,
@@ -29,7 +31,7 @@ pub async fn seed(db: &Database) {
             }),
         },
         Item {
-            id: ItemId::new(),
+            id: item2_id,
             name: "Shortbow".to_string(),
             value: 2500,
             weight: 2,

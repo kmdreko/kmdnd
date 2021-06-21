@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
 use crate::encounter::EncounterId;
+use crate::item::ItemId;
 use crate::typedid::{TypedId, TypedIdMarker};
 
 pub mod db;
@@ -37,7 +38,7 @@ impl TypedIdMarker for Operation {
 #[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum OperationType {
     Move { feet: f32 },
-    Action { name: String },
+    Action(Action),
     Bonus { name: String },
     Roll { roll: Roll, result: i32 },
 }
@@ -55,4 +56,33 @@ impl OperationType {
 #[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum Roll {
     Initiative,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "action_type", rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum Action {
+    Melee,
+    Attack(Attack),
+    CastSpell,
+    Dash,
+    Disengage,
+    Dodge,
+    Help,
+    Hide,
+    Ready,
+    Search,
+    UseObject,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Attack {
+    targets: Vec<AttackTarget>,
+    weapon_id: ItemId,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttackTarget {
+    character_id: CharacterId,
+    hit_roll: i32,
+    damage: Option<i32>,
 }

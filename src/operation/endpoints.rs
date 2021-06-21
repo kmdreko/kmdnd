@@ -9,6 +9,8 @@ use crate::campaign::{self, CampaignId};
 use crate::character::{self, CharacterId};
 use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
+use crate::item::{self, ItemId};
+use crate::operation::{Action, Attack, AttackTarget};
 
 use super::{db, Operation, OperationId, OperationType, Roll};
 
@@ -41,6 +43,34 @@ impl OperationBody {
 pub struct MoveBody {
     pub character_id: CharacterId,
     pub feet: f32,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ActionBody {
+    pub character_id: CharacterId,
+    pub action_type: ActionTypeBody,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum ActionTypeBody {
+    Melee,
+    Attack(AttackBody),
+    CastSpell,
+    Dash,
+    Disengage,
+    Dodge,
+    Help,
+    Hide,
+    Ready,
+    Search,
+    UseObject,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct AttackBody {
+    pub target_character_id: CharacterId,
+    pub weapon_id: ItemId,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -269,6 +299,121 @@ async fn move_in_current_encounter_in_campaign(
         created_at: now,
         modified_at: now,
         operation_type: OperationType::Move { feet: body.feet },
+    };
+
+    db::insert_operation(&db, &operation).await?;
+
+    Ok(Json(OperationBody::render(operation)))
+}
+
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/action")]
+#[tracing::instrument(skip(db))]
+async fn take_action_in_current_encounter_in_campaign(
+    db: Data<Database>,
+    params: Path<CampaignId>,
+    body: Json<ActionBody>,
+) -> Result<Json<OperationBody>, Error> {
+    let campaign_id = params.into_inner();
+    let body = body.into_inner();
+
+    campaign::db::fetch_campaign_by_id(&db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+
+    let encounter = encounter::db::fetch_current_encounter_by_campaign(&db, campaign_id)
+        .await?
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
+
+    let _source_character =
+        character::db::fetch_character_by_campaign_and_id(&db, campaign_id, body.character_id)
+            .await?
+            .ok_or(Error::CharacterNotInCampaign {
+                campaign_id,
+                character_id: body.character_id,
+            })?;
+
+    if !encounter.character_ids.contains(&body.character_id) {
+        return Err(Error::CharacterNotInEncounter {
+            campaign_id,
+            encounter_id: encounter.id,
+            character_id: body.character_id,
+        });
+    }
+
+    if let EncounterState::Turn { character_id, .. } = encounter.state {
+        if character_id != body.character_id {
+            return Err(Error::NotThisPlayersTurn {
+                campaign_id,
+                encounter_id: encounter.id,
+                request_character_id: body.character_id,
+                current_character_id: character_id,
+            });
+        }
+    }
+
+    let action = match body.action_type {
+        ActionTypeBody::Attack(attack) => {
+            let target_character = character::db::fetch_character_by_campaign_and_id(
+                &db,
+                campaign_id,
+                attack.target_character_id,
+            )
+            .await?
+            .ok_or(Error::CharacterNotInCampaign {
+                campaign_id,
+                character_id: attack.target_character_id,
+            })?;
+
+            if !encounter
+                .character_ids
+                .contains(&attack.target_character_id)
+            {
+                return Err(Error::CharacterNotInEncounter {
+                    campaign_id,
+                    encounter_id: encounter.id,
+                    character_id: attack.target_character_id,
+                });
+            }
+
+            let item = item::db::fetch_item_by_id(&db, attack.weapon_id)
+                .await?
+                .ok_or(Error::ItemDoesNotExist {
+                    item_id: attack.weapon_id,
+                })?;
+
+            let weapon = item
+                .item_type
+                .as_weapon()
+                .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+
+            let hit_roll = rand::thread_rng().gen_range(1..=20);
+            let damage = if hit_roll > target_character.stats.armor_class {
+                Some(weapon.damage_amount.roll())
+            } else {
+                None
+            };
+
+            Action::Attack(Attack {
+                targets: vec![AttackTarget {
+                    character_id: target_character.id,
+                    hit_roll,
+                    damage,
+                }],
+                weapon_id: item.id,
+            })
+        }
+        _ => unimplemented!("the action is not yet implemented"),
+    };
+
+    let now = Utc::now();
+    let operation = Operation {
+        id: OperationId::new(),
+        campaign_id: campaign_id,
+        encounter_id: Some(encounter.id),
+        character_id: body.character_id,
+        created_at: now,
+        modified_at: now,
+        operation_type: OperationType::Action(action),
     };
 
     db::insert_operation(&db, &operation).await?;
