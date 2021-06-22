@@ -31,7 +31,7 @@ async fn main() -> Result<(), IoError> {
     let db = Client::with_uri_str(uri)
         .await
         .map_err(|err| IoError::new(ErrorKind::Other, err))?
-        .database("dnd");
+        .database("kmdnd");
 
     // ping the database to ensure connection is established
     db.run_command(bson::doc! { "ping": 1 }, None)

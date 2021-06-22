@@ -1,5 +1,5 @@
 [package]
-name = "dnd"
+name = "kmdnd"
 version = "0.1.0"
 authors = ["Trevor Wilson <kmdreko@gmail.com>"]
 edition = "2018"

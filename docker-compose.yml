@@ -1,7 +1,7 @@
 version: '3.1'
 services:
     mongodb:
-        container_name: "mongodb"
+        container_name: "kmdnd_db"
         image: "mongo:latest"
         ports:
             - "27017:27017"

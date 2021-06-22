@@ -493,24 +493,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 
 [[package]]
-name = "dnd"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "chrono",
- "futures",
- "mongodb",
- "rand 0.8.4",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-actix-web",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -901,6 +883,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83bdfbace3a0e81a4253f73b49e960b053e396a11012cbd49b9b74d6a2b67062"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "kmdnd"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "chrono",
+ "futures",
+ "mongodb",
+ "rand 0.8.4",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-actix-web",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
