@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Display};
+use std::io::Error as IoError;
 
 use actix_web::body::Body;
 use actix_web::error::{JsonPayloadError, PathError, QueryPayloadError, UrlencodedError};
@@ -86,6 +87,8 @@ pub enum Error {
     FailedDatabaseCall(DatabaseError),
     #[serde(serialize_with = "display")]
     FailedToSerializeToBson(BsonError),
+    #[serde(serialize_with = "display")]
+    IoError(IoError),
 }
 
 impl Error {
@@ -109,8 +112,9 @@ impl Error {
             Error::NoCharactersInEncounter { .. } => "E4091006",
             Error::NotThisPlayersTurn { .. } => "E4091007",
             Error::ItemIsNotAWeapon { .. } => "E4091008",
-            Error::FailedDatabaseCall { .. } => "E5001000",
-            Error::FailedToSerializeToBson { .. } => "E5001001",
+            Error::FailedDatabaseCall(_) => "E5001000",
+            Error::FailedToSerializeToBson(_) => "E5001001",
+            Error::IoError(_) => "E5001002",
         }
     }
 
@@ -160,6 +164,7 @@ impl Error {
             Error::FailedToSerializeToBson { .. } => {
                 "An error occurred when serializing an object to bson"
             }
+            Error::IoError { .. } => "An error occurred during an I/O operation",
         }
     }
 }
@@ -187,6 +192,7 @@ impl ResponseError for Error {
             Error::ItemIsNotAWeapon { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -221,6 +227,12 @@ impl From<DatabaseError> for Error {
 impl From<BsonError> for Error {
     fn from(error: BsonError) -> Error {
         Error::FailedToSerializeToBson(error)
+    }
+}
+
+impl From<IoError> for Error {
+    fn from(error: IoError) -> Error {
+        Error::IoError(error)
     }
 }
 

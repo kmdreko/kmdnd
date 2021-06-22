@@ -1,8 +1,6 @@
-use std::io::{Error as IoError, ErrorKind};
-
 use actix_web::web::{self, FormConfig, JsonConfig, PathConfig, QueryConfig};
 use actix_web::{App, HttpServer, ResponseError};
-use mongodb::{bson, Client};
+use mongodb::Client;
 use tracing::info;
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -20,7 +18,7 @@ mod user;
 use error::Error;
 
 #[actix_web::main]
-async fn main() -> Result<(), IoError> {
+async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
         .with_span_events(FmtSpan::NEW)
         .compact()
@@ -28,33 +26,15 @@ async fn main() -> Result<(), IoError> {
 
     let uri = "mongodb://localhost:27017";
     info!("connecting to db: {}", uri);
-    let db = Client::with_uri_str(uri)
-        .await
-        .map_err(|err| IoError::new(ErrorKind::Other, err))?
-        .database("kmdnd");
+    let db = Client::with_uri_str(uri).await?.database("kmdnd");
 
-    // ping the database to ensure connection is established
-    db.run_command(bson::doc! { "ping": 1 }, None)
-        .await
-        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
+    campaign::db::initialize(&db).await?;
+    character::db::initialize(&db).await?;
+    encounter::db::initialize(&db).await?;
+    operation::db::initialize(&db).await?;
+    item::db::initialize(&db).await?;
 
-    campaign::db::initialize(&db)
-        .await
-        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
-    character::db::initialize(&db)
-        .await
-        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
-    encounter::db::initialize(&db)
-        .await
-        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
-    operation::db::initialize(&db)
-        .await
-        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
-    item::db::initialize(&db)
-        .await
-        .map_err(|err| IoError::new(ErrorKind::Other, err))?;
-
-    seed::seed(&db).await;
+    seed::seed(&db).await?;
 
     HttpServer::new(move || {
         App::new()
@@ -97,5 +77,7 @@ async fn main() -> Result<(), IoError> {
     })
     .bind("127.0.0.1:8080")?
     .run()
-    .await
+    .await?;
+
+    Ok(())
 }

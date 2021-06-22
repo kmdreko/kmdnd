@@ -4,15 +4,21 @@ use mongodb::Database;
 use crate::campaign::{self, Campaign};
 use crate::character::{self, Character, CharacterOwner, CharacterStats, EquipmentEntry};
 use crate::encounter::{self, Encounter, EncounterId, EncounterState};
+use crate::error::Error;
 use crate::item::{
     self, Armor, ArmorType, DamageType, Dice, Item, ItemId, ItemType, Weapon, WeaponProperty,
 };
 
-pub async fn seed(db: &Database) {
-    db.drop(None).await.unwrap();
+pub async fn seed(db: &Database) -> Result<(), Error> {
+    db.drop(None).await?;
+
+    let campaign_id = "CPN-16E77539-8873-4C8A-BCA3-2036010474AD".parse().unwrap();
+    let item1_id = "ITM-5EA81D0A-9788-4B8A-82D9-1A0D636B53CE".parse().unwrap();
+    let item2_id = "ITM-5C903E93-2524-4876-B4C8-816B98D0C77B".parse().unwrap();
+    let character1_id = "CHR-33957EB6-0EE7-487F-A087-E55C335BD63C".parse().unwrap();
+    let character2_id = "CHR-DE3168FD-2730-47A2-BFE0-E53C79DD57A0".parse().unwrap();
 
     let now = Utc::now();
-    let campaign_id = "CPN-16E77539-8873-4C8A-BCA3-2036010474AD".parse().unwrap();
     let campaign = Campaign {
         id: campaign_id,
         name: "The Green Bean Bunch".to_string(),
@@ -20,8 +26,6 @@ pub async fn seed(db: &Database) {
         modified_at: now,
     };
 
-    let item1_id = "ITM-5EA81D0A-9788-4B8A-82D9-1A0D636B53CE".parse().unwrap();
-    let item2_id = "ITM-5C903E93-2524-4876-B4C8-816B98D0C77B".parse().unwrap();
     let items = vec![
         Item {
             id: item1_id,
@@ -78,10 +82,9 @@ pub async fn seed(db: &Database) {
     ];
 
     for item in &items {
-        item::db::insert_item(db, item).await.unwrap();
+        item::db::insert_item(db, item).await?;
     }
 
-    let character1_id = "CHR-33957EB6-0EE7-487F-A087-E55C335BD63C".parse().unwrap();
     let mut character1 = Character {
         id: character1_id,
         owner: CharacterOwner::Campaign(campaign_id),
@@ -103,7 +106,6 @@ pub async fn seed(db: &Database) {
         ],
     };
 
-    let character2_id = "CHR-DE3168FD-2730-47A2-BFE0-E53C79DD57A0".parse().unwrap();
     let mut character2 = Character {
         id: character2_id,
         owner: CharacterOwner::Campaign(campaign_id),
@@ -125,8 +127,8 @@ pub async fn seed(db: &Database) {
         ],
     };
 
-    character1.recalculate_stats(db).await.unwrap();
-    character2.recalculate_stats(db).await.unwrap();
+    character1.recalculate_stats(db).await?;
+    character2.recalculate_stats(db).await?;
 
     let encounter = Encounter {
         id: EncounterId::new(),
@@ -137,14 +139,10 @@ pub async fn seed(db: &Database) {
         state: EncounterState::Initiative,
     };
 
-    campaign::db::insert_campaign(db, &campaign).await.unwrap();
-    character::db::insert_character(db, &character1)
-        .await
-        .unwrap();
-    character::db::insert_character(db, &character2)
-        .await
-        .unwrap();
-    encounter::db::insert_encounter(db, &encounter)
-        .await
-        .unwrap();
+    campaign::db::insert_campaign(db, &campaign).await?;
+    character::db::insert_character(db, &character1).await?;
+    character::db::insert_character(db, &character2).await?;
+    encounter::db::insert_encounter(db, &encounter).await?;
+
+    Ok(())
 }
