@@ -6,6 +6,7 @@ use crate::campaign::CampaignId;
 use crate::character::CharacterId;
 use crate::character::Position;
 use crate::encounter::EncounterId;
+use crate::encounter::EncounterState;
 use crate::item::ItemId;
 use crate::typedid::{TypedId, TypedIdMarker};
 
@@ -21,6 +22,7 @@ pub struct Operation {
     pub id: OperationId,
     pub campaign_id: CampaignId,
     pub encounter_id: Option<EncounterId>,
+    pub encounter_state: Option<EncounterState>,
     pub character_id: CharacterId,
     #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: DateTime<Utc>,

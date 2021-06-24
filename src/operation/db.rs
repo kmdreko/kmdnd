@@ -3,7 +3,8 @@ use mongodb::options::FindOptions;
 use mongodb::{bson, Database};
 
 use crate::campaign::CampaignId;
-use crate::encounter::EncounterId;
+use crate::character::CharacterId;
+use crate::encounter::{EncounterId, Round};
 use crate::error::Error;
 
 use super::Operation;
@@ -65,6 +66,35 @@ pub async fn fetch_operations_by_encounter(
     let operations: Vec<Operation> = db
         .collection(OPERATIONS)
         .find(bson::doc! { "encounter_id": encounter_id }, options)
+        .await?
+        .try_collect()
+        .await?;
+
+    Ok(operations)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn fetch_operations_by_turn(
+    db: &Database,
+    encounter_id: EncounterId,
+    round: Round,
+    character_id: CharacterId,
+) -> Result<Vec<Operation>, Error> {
+    let options = FindOptions::builder()
+        .sort(bson::doc! { "created_at": -1 })
+        .build();
+
+    let operations: Vec<Operation> = db
+        .collection(OPERATIONS)
+        .find(
+            bson::doc! {
+                "encounter_id": encounter_id,
+                "encounter_state.type": "TURN",
+                "encounter_state.round": round,
+                "encounter_state.character_id": character_id,
+            },
+            options,
+        )
         .await?
         .try_collect()
         .await?;
