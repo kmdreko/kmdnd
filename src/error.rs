@@ -90,6 +90,12 @@ pub enum Error {
         current_movement: f32,
         request_movement: f32,
     },
+    AttackNotInRange {
+        request_character_id: CharacterId,
+        target_character_id: CharacterId,
+        weapon_range: f32,
+        current_range: f32,
+    },
 
     // 500
     #[serde(serialize_with = "display")]
@@ -123,6 +129,7 @@ impl Error {
             Error::ItemIsNotAWeapon { .. } => "E4091008",
             Error::CharacterDoesNotHavePosition { .. } => "E4091009",
             Error::CharacterMovementExceeded { .. } => "E4091010",
+            Error::AttackNotInRange { .. } => "E4091011",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
             Error::IoError(_) => "E5001002",
@@ -175,6 +182,9 @@ impl Error {
             Error::CharacterMovementExceeded { .. } => {
                 "The requested character does not have enough speed to make this move"
             }
+            Error::AttackNotInRange { .. } => {
+                "The requested attack does not have enough range to reach the target character"
+            }
             Error::FailedDatabaseCall { .. } => {
                 "An error occurred when communicating with the database"
             }
@@ -209,6 +219,7 @@ impl ResponseError for Error {
             Error::ItemIsNotAWeapon { .. } => StatusCode::CONFLICT,
             Error::CharacterDoesNotHavePosition { .. } => StatusCode::CONFLICT,
             Error::CharacterMovementExceeded { .. } => StatusCode::CONFLICT,
+            Error::AttackNotInRange { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,

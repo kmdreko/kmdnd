@@ -56,20 +56,44 @@ pub struct Weapon {
     pub properties: Vec<WeaponProperty>,
 }
 
+impl Weapon {
+    pub fn normal_range(&self) -> f32 {
+        let mut melee_range = 5.0;
+        for property in &self.properties {
+            match property {
+                WeaponProperty::Ammunition(range) | WeaponProperty::Thrown(range) => {
+                    return range.normal as f32
+                }
+                WeaponProperty::Reach => {
+                    melee_range += 5.0;
+                }
+                _ => {}
+            }
+        }
+
+        melee_range
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum WeaponProperty {
-    Ammunition { normal_range: i32, long_range: i32 },
+    Ammunition(Range),
     Finesse,
     Heavy,
     Light,
     Loading,
-    Range { normal_range: i32, long_range: i32 },
     Reach,
     Special,
-    Thrown { normal_range: i32, long_range: i32 },
+    Thrown(Range),
     TwoHanded,
     Versatile { two_handed_damage: Dice },
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+pub struct Range {
+    pub normal: i32,
+    pub long: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -6,7 +6,7 @@ use crate::character::{self, Character, CharacterOwner, CharacterStats, Equipmen
 use crate::encounter::{self, Encounter, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{
-    self, Armor, ArmorType, DamageType, Dice, Item, ItemId, ItemType, Weapon, WeaponProperty,
+    self, Armor, ArmorType, DamageType, Dice, Item, ItemId, ItemType, Range, Weapon, WeaponProperty,
 };
 
 pub async fn seed(db: &Database) -> Result<(), Error> {
@@ -47,10 +47,10 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
                 damage_amount: Dice::D6,
                 damage_type: DamageType::Piercing,
                 properties: vec![
-                    WeaponProperty::Ammunition {
-                        normal_range: 80,
-                        long_range: 320,
-                    },
+                    WeaponProperty::Ammunition(Range {
+                        normal: 80,
+                        long: 320,
+                    }),
                     WeaponProperty::TwoHanded,
                 ],
             }),

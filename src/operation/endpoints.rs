@@ -386,7 +386,7 @@ async fn take_action_in_current_encounter_in_campaign(
         .await?
         .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
 
-    let _source_character =
+    let source_character =
         character::db::fetch_character_by_campaign_and_id(&db, campaign_id, body.character_id)
             .await?
             .ok_or(Error::CharacterNotInCampaign {
@@ -413,59 +413,82 @@ async fn take_action_in_current_encounter_in_campaign(
         }
     }
 
-    let action = match body.action_type {
-        ActionTypeBody::Attack(attack) => {
-            let target_character = character::db::fetch_character_by_campaign_and_id(
-                &db,
-                campaign_id,
-                attack.target_character_id,
-            )
-            .await?
-            .ok_or(Error::CharacterNotInCampaign {
-                campaign_id,
-                character_id: attack.target_character_id,
-            })?;
-
-            if !encounter
-                .character_ids
-                .contains(&attack.target_character_id)
-            {
-                return Err(Error::CharacterNotInEncounter {
+    let action =
+        match body.action_type {
+            ActionTypeBody::Attack(attack) => {
+                let target_character = character::db::fetch_character_by_campaign_and_id(
+                    &db,
                     campaign_id,
-                    encounter_id: encounter.id,
-                    character_id: attack.target_character_id,
-                });
-            }
-
-            let item = item::db::fetch_item_by_id(&db, attack.weapon_id)
+                    attack.target_character_id,
+                )
                 .await?
-                .ok_or(Error::ItemDoesNotExist {
-                    item_id: attack.weapon_id,
+                .ok_or(Error::CharacterNotInCampaign {
+                    campaign_id,
+                    character_id: attack.target_character_id,
                 })?;
 
-            let weapon = item
-                .item_type
-                .as_weapon()
-                .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+                if !encounter
+                    .character_ids
+                    .contains(&attack.target_character_id)
+                {
+                    return Err(Error::CharacterNotInEncounter {
+                        campaign_id,
+                        encounter_id: encounter.id,
+                        character_id: attack.target_character_id,
+                    });
+                }
 
-            let hit_roll = rand::thread_rng().gen_range(1..=20);
-            let damage = if hit_roll >= target_character.stats.armor_class {
-                Some(weapon.damage_amount.roll())
-            } else {
-                None
-            };
+                let item = item::db::fetch_item_by_id(&db, attack.weapon_id)
+                    .await?
+                    .ok_or(Error::ItemDoesNotExist {
+                        item_id: attack.weapon_id,
+                    })?;
 
-            Action::Attack(Attack {
-                targets: vec![AttackTarget {
-                    character_id: target_character.id,
-                    hit_roll,
-                    damage,
-                }],
-                weapon_id: item.id,
-            })
-        }
-        _ => unimplemented!("the action is not yet implemented"),
-    };
+                let weapon = item
+                    .item_type
+                    .as_weapon()
+                    .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+
+                let source_position = source_character.position.as_ref().ok_or(
+                    Error::CharacterDoesNotHavePosition {
+                        character_id: source_character.id,
+                    },
+                )?;
+                let target_position = target_character.position.as_ref().ok_or(
+                    Error::CharacterDoesNotHavePosition {
+                        character_id: target_character.id,
+                    },
+                )?;
+
+                let weapon_range = weapon.normal_range();
+                let current_range = Position::distance(source_position, target_position);
+                if weapon_range < current_range {
+                    return Err(Error::AttackNotInRange {
+                        request_character_id: source_character.id,
+                        target_character_id: target_character.id,
+                        weapon_range,
+                        current_range,
+                    });
+                }
+
+                let hit_roll = rand::thread_rng().gen_range(1..=20);
+                let damage = if hit_roll >= target_character.stats.armor_class {
+                    Some(weapon.damage_amount.roll())
+                } else {
+                    None
+                };
+
+                Action::Attack(Attack {
+                    targets: vec![AttackTarget {
+                        character_id: target_character.id,
+                        hit_roll,
+                        damage,
+                    }],
+                    weapon_id: item.id,
+                })
+            }
+            _ => unimplemented!("the action is not yet implemented"),
+        };
 
     let now = Utc::now();
     let operation = Operation {
