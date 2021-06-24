@@ -9,7 +9,7 @@ use crate::campaign::{self, CampaignId};
 use crate::error::Error;
 use crate::item::{self, ItemBody};
 
-use super::{db, Character, CharacterId, CharacterOwner, CharacterStats};
+use super::{db, Character, CharacterId, CharacterOwner, CharacterStats, Position};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CreateCharacterBody {
@@ -25,6 +25,7 @@ pub struct CharacterBody {
     pub modified_at: DateTime<Utc>,
     pub stats: CharacterStats,
     pub equipment: Vec<ItemWithQuantityBody>,
+    pub position: Option<Position>,
 }
 
 impl CharacterBody {
@@ -51,6 +52,7 @@ impl CharacterBody {
             modified_at: character.modified_at,
             stats: character.stats,
             equipment: equipment,
+            position: character.position,
         })
     }
 }
@@ -84,6 +86,7 @@ async fn create_character_in_campaign(
         modified_at: now,
         stats: Default::default(),
         equipment: vec![],
+        position: None,
     };
     character.recalculate_stats(&db).await?;
 

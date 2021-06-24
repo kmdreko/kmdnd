@@ -29,7 +29,7 @@ pub struct Character {
     pub modified_at: DateTime<Utc>,
     pub stats: CharacterStats,
     pub equipment: Vec<EquipmentEntry>,
-    // position: Option<(f32, f32)>,
+    pub position: Option<Position>,
     // health: i32,
     // effects: Vec<Effect>,
 }
@@ -184,4 +184,11 @@ pub struct EquipmentEntry {
     pub equiped: bool,
     pub quantity: i32,
     pub item_id: ItemId,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Position {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }

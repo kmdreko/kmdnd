@@ -2,7 +2,7 @@ use chrono::Utc;
 use mongodb::Database;
 
 use crate::campaign::{self, Campaign};
-use crate::character::{self, Character, CharacterOwner, CharacterStats, EquipmentEntry};
+use crate::character::{self, Character, CharacterOwner, CharacterStats, EquipmentEntry, Position};
 use crate::encounter::{self, Encounter, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{
@@ -104,6 +104,11 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
                 item_id: items[2].id,
             },
         ],
+        position: Some(Position {
+            x: 5.0,
+            y: 0.0,
+            z: 0.0,
+        }),
     };
 
     let mut character2 = Character {
@@ -125,6 +130,11 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
                 item_id: items[3].id,
             },
         ],
+        position: Some(Position {
+            x: -5.0,
+            y: 0.0,
+            z: 0.0,
+        }),
     };
 
     character1.recalculate_stats(db).await?;
