@@ -43,11 +43,11 @@ pub enum OperationType {
     Move(Move),
     Action(Action),
     Bonus { name: String },
-    Roll { roll: Roll, result: i32 },
+    Roll { roll: RollType, result: i32 },
 }
 
 impl OperationType {
-    pub fn as_roll(&self) -> Option<(Roll, i32)> {
+    pub fn as_roll(&self) -> Option<(RollType, i32)> {
         match self {
             &OperationType::Roll { roll, result } => Some((roll, result)),
             _ => None,
@@ -64,8 +64,53 @@ impl OperationType {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
-pub enum Roll {
+pub enum RollType {
     Initiative,
+    Check(AbilityOrSkillType),
+    Save(AbilityOrSkillType),
+    HitRoll,
+    DamageRoll,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum AbilityOrSkillType {
+    Ability(AbilityType),
+    Skill(SkillType),
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum AbilityType {
+    Strength,
+    Dexterity,
+    Constitution,
+    Intelligence,
+    Wisdom,
+    Charisma,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum SkillType {
+    Acrobatics,
+    AnimalHandling,
+    Arcana,
+    Athletics,
+    Deception,
+    History,
+    Insight,
+    Intimidation,
+    Investigation,
+    Medicine,
+    Nature,
+    Perception,
+    Performance,
+    Persuasion,
+    Religion,
+    SleightOfHand,
+    Stealth,
+    Survival,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,13 +137,22 @@ pub enum Action {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attack {
-    targets: Vec<AttackTarget>,
     weapon_id: ItemId,
+    interactions: Vec<Interaction>,
 }
 
+pub type InteractionId = TypedId<Interaction>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AttackTarget {
+pub struct Interaction {
+    id: InteractionId,
     character_id: CharacterId,
-    hit_roll: i32,
-    damage: Option<i32>,
+    descriptor: RollType,
+    result: Option<i32>,
+}
+
+impl TypedIdMarker for Interaction {
+    fn tag() -> &'static str {
+        "ITR"
+    }
 }

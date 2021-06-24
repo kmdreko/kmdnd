@@ -1,4 +1,3 @@
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::character::Character;
@@ -113,19 +112,6 @@ pub enum Dice {
     D10,
     D12,
     D20,
-}
-
-impl Dice {
-    pub fn roll(&self) -> i32 {
-        match self {
-            Dice::D4 => rand::thread_rng().gen_range(1..=4),
-            Dice::D6 => rand::thread_rng().gen_range(1..=6),
-            Dice::D8 => rand::thread_rng().gen_range(1..=8),
-            Dice::D10 => rand::thread_rng().gen_range(1..=10),
-            Dice::D12 => rand::thread_rng().gen_range(1..=12),
-            Dice::D20 => rand::thread_rng().gen_range(1..=20),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

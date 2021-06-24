@@ -10,9 +10,9 @@ use crate::character::{self, CharacterId, Position};
 use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{self, ItemId};
-use crate::operation::{Action, Attack, AttackTarget};
+use crate::operation::{Action, Attack, Interaction, InteractionId};
 
-use super::{db, Move, Operation, OperationId, OperationType, Roll};
+use super::{db, Move, Operation, OperationId, OperationType, RollType};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct OperationBody {
@@ -78,7 +78,7 @@ pub struct AttackBody {
 #[derive(Clone, Debug, Deserialize)]
 pub struct RollBody {
     pub character_id: CharacterId,
-    pub roll: Roll,
+    pub roll: RollType,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -157,7 +157,7 @@ async fn roll_in_current_encounter_in_campaign(
             .iter()
             .any(|operation| match operation.operation_type {
                 OperationType::Roll { roll, .. } => {
-                    operation.character_id == body.character_id && roll == Roll::Initiative
+                    operation.character_id == body.character_id && roll == RollType::Initiative
                 }
                 _ => false,
             });
@@ -181,7 +181,7 @@ async fn roll_in_current_encounter_in_campaign(
         created_at: now,
         modified_at: now,
         operation_type: OperationType::Roll {
-            roll: Roll::Initiative,
+            roll: RollType::Initiative,
             result,
         },
     };
@@ -216,7 +216,7 @@ async fn begin_current_encounter_in_campaign(
                 .as_roll()
                 .map(|(roll, result)| (operation.character_id, roll, result))
         })
-        .filter(|(_, roll, _)| *roll == Roll::Initiative)
+        .filter(|(_, roll, _)| *roll == RollType::Initiative)
         .map(|(character_id, _, result)| (character_id, result))
         .collect();
 
@@ -471,20 +471,14 @@ async fn take_action_in_current_encounter_in_campaign(
                     });
                 }
 
-                let hit_roll = rand::thread_rng().gen_range(1..=20);
-                let damage = if hit_roll >= target_character.stats.armor_class {
-                    Some(weapon.damage_amount.roll())
-                } else {
-                    None
-                };
-
                 Action::Attack(Attack {
-                    targets: vec![AttackTarget {
-                        character_id: target_character.id,
-                        hit_roll,
-                        damage,
-                    }],
                     weapon_id: item.id,
+                    interactions: vec![Interaction {
+                        id: InteractionId::new(),
+                        character_id: source_character.id,
+                        descriptor: RollType::HitRoll,
+                        result: None,
+                    }],
                 })
             }
             _ => unimplemented!("the action is not yet implemented"),
