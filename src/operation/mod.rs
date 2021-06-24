@@ -31,6 +31,15 @@ pub struct Operation {
     pub operation_type: OperationType,
 }
 
+impl Operation {
+    pub fn interactions_mut(&mut self) -> &mut [Interaction] {
+        match &mut self.operation_type {
+            OperationType::Action(Action::Attack(attack)) => &mut attack.interactions,
+            _ => &mut [],
+        }
+    }
+}
+
 impl TypedIdMarker for Operation {
     fn tag() -> &'static str {
         "OPR"

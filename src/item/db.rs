@@ -33,10 +33,10 @@ pub async fn fetch_items(db: &Database) -> Result<Vec<Item>, Error> {
 
 #[tracing::instrument(skip(db))]
 pub async fn fetch_item_by_id(db: &Database, item_id: ItemId) -> Result<Option<Item>, Error> {
-    let items = db
+    let item = db
         .collection(ITEMS)
         .find_one(bson::doc! { "_id": item_id }, None)
         .await?;
 
-    Ok(items)
+    Ok(item)
 }

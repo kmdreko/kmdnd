@@ -91,6 +91,13 @@ pub struct BeginEncounterResultBody {
     turn_order: Vec<CharacterId>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct SubmitInteractionBody {
+    interaction_id: InteractionId,
+    character_id: CharacterId,
+    result: i32,
+}
+
 #[get("/campaigns/{campaign_id}/encounters/CURRENT/operations")]
 #[tracing::instrument(skip(db))]
 async fn get_operations_in_current_encounter_in_campaign(
@@ -115,6 +122,82 @@ async fn get_operations_in_current_encounter_in_campaign(
         .collect();
 
     Ok(Json(body))
+}
+
+#[get("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}")]
+#[tracing::instrument(skip(db))]
+async fn get_operation_by_id_in_current_encounter_in_campaign(
+    db: Data<Database>,
+    params: Path<(CampaignId, OperationId)>,
+) -> Result<Json<OperationBody>, Error> {
+    let (campaign_id, operation_id) = params.into_inner();
+
+    campaign::db::fetch_campaign_by_id(&db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+
+    let encounter = encounter::db::fetch_current_encounter_by_campaign(&db, campaign_id)
+        .await?
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
+
+    let operation = db::fetch_operation_by_id(&db, operation_id).await?.ok_or(
+        Error::OperationDoesNotExist {
+            encounter_id: encounter.id,
+            operation_id,
+        },
+    )?;
+
+    Ok(Json(OperationBody::render(operation)))
+}
+
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/interactions")]
+#[tracing::instrument(skip(db))]
+async fn submit_interaction_result_to_operation(
+    db: Data<Database>,
+    params: Path<(CampaignId, OperationId)>,
+    body: Json<SubmitInteractionBody>,
+) -> Result<Json<OperationBody>, Error> {
+    let (campaign_id, operation_id) = params.into_inner();
+
+    campaign::db::fetch_campaign_by_id(&db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+
+    let encounter = encounter::db::fetch_current_encounter_by_campaign(&db, campaign_id)
+        .await?
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
+
+    let mut operation = db::fetch_operation_by_id(&db, operation_id).await?.ok_or(
+        Error::OperationDoesNotExist {
+            encounter_id: encounter.id,
+            operation_id,
+        },
+    )?;
+
+    let (index, interaction) = operation
+        .interactions_mut()
+        .iter_mut()
+        .enumerate()
+        .find(|(_, inter)| inter.id == body.interaction_id)
+        .ok_or(Error::InteractionDoesNotExist {
+            operation_id,
+            interaction_id: body.interaction_id,
+        })?;
+
+    if interaction.character_id != body.character_id {
+        return Err(Error::WrongCharacterForInteraction {
+            operation_id: operation_id,
+            interaction_id: interaction.id,
+            expected_character_id: interaction.character_id,
+            request_character_id: body.character_id,
+        });
+    }
+
+    interaction.result = Some(body.result);
+
+    db::update_operation_interaction_result(&db, &operation, index, body.result).await?;
+
+    Ok(Json(OperationBody::render(operation)))
 }
 
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/roll")]

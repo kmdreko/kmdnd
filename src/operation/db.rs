@@ -1,3 +1,4 @@
+use chrono::Utc;
 use futures::TryStreamExt;
 use mongodb::options::FindOptions;
 use mongodb::{bson, Database};
@@ -7,7 +8,7 @@ use crate::character::CharacterId;
 use crate::encounter::{EncounterId, Round};
 use crate::error::Error;
 
-use super::Operation;
+use super::{Operation, OperationId};
 
 const OPERATIONS: &str = "operations";
 
@@ -33,6 +34,19 @@ pub async fn insert_operation(db: &Database, operation: &Operation) -> Result<()
     db.collection(OPERATIONS).insert_one(doc, None).await?;
 
     Ok(())
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn fetch_operation_by_id(
+    db: &Database,
+    operation_id: OperationId,
+) -> Result<Option<Operation>, Error> {
+    let operation = db
+        .collection(OPERATIONS)
+        .find_one(bson::doc! { "_id": operation_id }, None)
+        .await?;
+
+    Ok(operation)
 }
 
 #[tracing::instrument(skip(db))]
@@ -100,4 +114,31 @@ pub async fn fetch_operations_by_turn(
         .await?;
 
     Ok(operations)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn update_operation_interaction_result(
+    db: &Database,
+    operation: &Operation,
+    interaction_index: usize,
+    result: i32,
+) -> Result<(), Error> {
+    let old_modified_at = bson::DateTime::from_chrono(operation.modified_at);
+    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+    let result_path = format!("operation_type.interactions.{}.result", interaction_index);
+
+    let result = db
+        .collection::<Operation>(OPERATIONS)
+        .update_one(
+            bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
+            bson::doc! { "$set": { result_path: result, "modified_at": new_modified_at } },
+            None,
+        )
+        .await?;
+
+    if result.matched_count == 0 {
+        return Err(Error::ConcurrentModificationDetected);
+    }
+
+    Ok(())
 }

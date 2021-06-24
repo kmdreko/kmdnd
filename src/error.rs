@@ -13,6 +13,7 @@ use crate::campaign::CampaignId;
 use crate::character::CharacterId;
 use crate::encounter::EncounterId;
 use crate::item::ItemId;
+use crate::operation::{InteractionId, OperationId};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -41,6 +42,14 @@ pub enum Error {
     },
     ItemDoesNotExist {
         item_id: ItemId,
+    },
+    OperationDoesNotExist {
+        encounter_id: EncounterId,
+        operation_id: OperationId,
+    },
+    InteractionDoesNotExist {
+        operation_id: OperationId,
+        interaction_id: InteractionId,
     },
 
     // 409
@@ -96,6 +105,12 @@ pub enum Error {
         weapon_range: f32,
         current_range: f32,
     },
+    WrongCharacterForInteraction {
+        operation_id: OperationId,
+        interaction_id: InteractionId,
+        expected_character_id: CharacterId,
+        request_character_id: CharacterId,
+    },
 
     // 500
     #[serde(serialize_with = "display")]
@@ -118,6 +133,8 @@ impl Error {
             Error::CharacterDoesNotExistInCampaign { .. } => "E4041002",
             Error::CurrentEncounterDoesNotExist { .. } => "E4041003",
             Error::ItemDoesNotExist { .. } => "E4041004",
+            Error::OperationDoesNotExist { .. } => "E4041005",
+            Error::InteractionDoesNotExist { .. } => "E4041006",
             Error::ConcurrentModificationDetected => "E4091000",
             Error::CurrentEncounterAlreadyExists { .. } => "E4091001",
             Error::CharacterNotInCampaign { .. } => "E4091002",
@@ -130,6 +147,7 @@ impl Error {
             Error::CharacterDoesNotHavePosition { .. } => "E4091009",
             Error::CharacterMovementExceeded { .. } => "E4091010",
             Error::AttackNotInRange { .. } => "E4091011",
+            Error::WrongCharacterForInteraction { .. } => "E4091012",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
             Error::IoError(_) => "E5001002",
@@ -151,6 +169,8 @@ impl Error {
                 "The requested campaign is not currently in an encounter"
             }
             Error::ItemDoesNotExist { .. } => "The requested item does not exist",
+            Error::OperationDoesNotExist { .. } => "The requested operation does not exist",
+            Error::InteractionDoesNotExist { .. } => "The requested interaction does not exist",
             Error::ConcurrentModificationDetected => {
                 "The server detected a concurrent modification"
             }
@@ -185,6 +205,9 @@ impl Error {
             Error::AttackNotInRange { .. } => {
                 "The requested attack does not have enough range to reach the target character"
             }
+            Error::WrongCharacterForInteraction { .. } => {
+                "The requested interaction is intended for a different character"
+            }
             Error::FailedDatabaseCall { .. } => {
                 "An error occurred when communicating with the database"
             }
@@ -208,6 +231,8 @@ impl ResponseError for Error {
             Error::CharacterDoesNotExistInCampaign { .. } => StatusCode::NOT_FOUND,
             Error::CurrentEncounterDoesNotExist { .. } => StatusCode::NOT_FOUND,
             Error::ItemDoesNotExist { .. } => StatusCode::NOT_FOUND,
+            Error::OperationDoesNotExist { .. } => StatusCode::NOT_FOUND,
+            Error::InteractionDoesNotExist { .. } => StatusCode::NOT_FOUND,
             Error::ConcurrentModificationDetected => StatusCode::CONFLICT,
             Error::CurrentEncounterAlreadyExists { .. } => StatusCode::CONFLICT,
             Error::CharacterNotInCampaign { .. } => StatusCode::CONFLICT,
@@ -220,6 +245,7 @@ impl ResponseError for Error {
             Error::CharacterDoesNotHavePosition { .. } => StatusCode::CONFLICT,
             Error::CharacterMovementExceeded { .. } => StatusCode::CONFLICT,
             Error::AttackNotInRange { .. } => StatusCode::CONFLICT,
+            Error::WrongCharacterForInteraction { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,
