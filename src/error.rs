@@ -81,6 +81,9 @@ pub enum Error {
     ItemIsNotAWeapon {
         item_id: ItemId,
     },
+    CharacterDoesNotHavePosition {
+        character_id: CharacterId,
+    },
 
     // 500
     #[serde(serialize_with = "display")]
@@ -112,6 +115,7 @@ impl Error {
             Error::NoCharactersInEncounter { .. } => "E4091006",
             Error::NotThisPlayersTurn { .. } => "E4091007",
             Error::ItemIsNotAWeapon { .. } => "E4091008",
+            Error::CharacterDoesNotHavePosition { .. } => "E4091009",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
             Error::IoError(_) => "E5001002",
@@ -158,6 +162,9 @@ impl Error {
                 "The requested player does not have permission for this turn"
             }
             Error::ItemIsNotAWeapon { .. } => "The provided item was expected to be a weapon",
+            Error::CharacterDoesNotHavePosition { .. } => {
+                "The requested character does not have a position"
+            }
             Error::FailedDatabaseCall { .. } => {
                 "An error occurred when communicating with the database"
             }
@@ -190,6 +197,7 @@ impl ResponseError for Error {
             Error::NoCharactersInEncounter { .. } => StatusCode::CONFLICT,
             Error::NotThisPlayersTurn { .. } => StatusCode::CONFLICT,
             Error::ItemIsNotAWeapon { .. } => StatusCode::CONFLICT,
+            Error::CharacterDoesNotHavePosition { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,

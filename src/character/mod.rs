@@ -192,3 +192,13 @@ pub struct Position {
     pub y: f32,
     pub z: f32,
 }
+
+impl Position {
+    pub fn distance(&self, other: &Position) -> f32 {
+        let x = self.x - other.x;
+        let y = self.y - other.y;
+        let z = self.z - other.z;
+
+        x * x + y * y + z * z
+    }
+}

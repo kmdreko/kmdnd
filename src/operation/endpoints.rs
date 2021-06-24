@@ -6,13 +6,13 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::{self, CampaignId};
-use crate::character::{self, CharacterId};
+use crate::character::{self, CharacterId, Position};
 use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{self, ItemId};
 use crate::operation::{Action, Attack, AttackTarget};
 
-use super::{db, Operation, OperationId, OperationType, Roll};
+use super::{db, Move, Operation, OperationId, OperationType, Roll};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct OperationBody {
@@ -42,7 +42,7 @@ impl OperationBody {
 #[derive(Clone, Debug, Deserialize)]
 pub struct MoveBody {
     pub character_id: CharacterId,
-    pub feet: f32,
+    pub position: Position,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -282,6 +282,14 @@ async fn move_in_current_encounter_in_campaign(
         .await?
         .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
 
+    let character =
+        character::db::fetch_character_by_campaign_and_id(&db, campaign_id, body.character_id)
+            .await?
+            .ok_or(Error::CharacterNotInCampaign {
+                campaign_id,
+                character_id: body.character_id,
+            })?;
+
     if !encounter.character_ids.contains(&body.character_id) {
         return Err(Error::CharacterNotInEncounter {
             campaign_id,
@@ -289,6 +297,15 @@ async fn move_in_current_encounter_in_campaign(
             character_id: body.character_id,
         });
     }
+
+    let current_position = character
+        .position
+        .ok_or(Error::CharacterDoesNotHavePosition {
+            character_id: body.character_id,
+        })?;
+
+    let desired_position = body.position;
+    let feet = Position::distance(&current_position, &desired_position);
 
     let now = Utc::now();
     let operation = Operation {
@@ -298,7 +315,10 @@ async fn move_in_current_encounter_in_campaign(
         character_id: body.character_id,
         created_at: now,
         modified_at: now,
-        operation_type: OperationType::Move { feet: body.feet },
+        operation_type: OperationType::Move(Move {
+            to_position: desired_position,
+            feet: feet,
+        }),
     };
 
     db::insert_operation(&db, &operation).await?;

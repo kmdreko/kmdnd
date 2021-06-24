@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
+use crate::character::Position;
 use crate::encounter::EncounterId;
 use crate::item::ItemId;
 use crate::typedid::{TypedId, TypedIdMarker};
@@ -37,7 +38,7 @@ impl TypedIdMarker for Operation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum OperationType {
-    Move { feet: f32 },
+    Move(Move),
     Action(Action),
     Bonus { name: String },
     Roll { roll: Roll, result: i32 },
@@ -56,6 +57,12 @@ impl OperationType {
 #[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum Roll {
     Initiative,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Move {
+    to_position: Position,
+    feet: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
