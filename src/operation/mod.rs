@@ -53,6 +53,13 @@ impl OperationType {
             _ => None,
         }
     }
+
+    pub fn as_move(&self) -> Option<&Move> {
+        match self {
+            OperationType::Move(mov) => Some(mov),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

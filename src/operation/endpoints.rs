@@ -285,7 +285,7 @@ async fn move_in_current_encounter_in_campaign(
         .await?
         .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
 
-    let character =
+    let current_character =
         character::db::fetch_character_by_campaign_and_id(&db, campaign_id, body.character_id)
             .await?
             .ok_or(Error::CharacterNotInCampaign {
@@ -301,14 +301,51 @@ async fn move_in_current_encounter_in_campaign(
         });
     }
 
-    let current_position = character
-        .position
-        .ok_or(Error::CharacterDoesNotHavePosition {
-            character_id: body.character_id,
-        })?;
+    let current_position =
+        current_character
+            .position
+            .as_ref()
+            .ok_or(Error::CharacterDoesNotHavePosition {
+                character_id: body.character_id,
+            })?;
 
     let desired_position = body.position;
     let feet = Position::distance(&current_position, &desired_position);
+
+    if let EncounterState::Turn {
+        round,
+        character_id,
+    } = encounter.state
+    {
+        if current_character.id != character_id {
+            return Err(Error::NotThisPlayersTurn {
+                campaign_id,
+                encounter_id: encounter.id,
+                current_character_id: character_id,
+                request_character_id: current_character.id,
+            });
+        }
+
+        let operations =
+            db::fetch_operations_by_turn(&db, encounter.id, round, character_id).await?;
+
+        let already_moved_feet: f32 = operations
+            .iter()
+            .filter(|op| op.character_id == current_character.id)
+            .filter_map(|op| op.operation_type.as_move())
+            .map(|mov| mov.feet)
+            .sum();
+
+        let maximum_movement = current_character.stats.speed as f32;
+        if maximum_movement < already_moved_feet + feet {
+            return Err(Error::CharacterMovementExceeded {
+                character_id,
+                maximum_movement,
+                current_movement: already_moved_feet,
+                request_movement: feet,
+            });
+        }
+    }
 
     let now = Utc::now();
     let operation = Operation {
@@ -326,6 +363,7 @@ async fn move_in_current_encounter_in_campaign(
     };
 
     db::insert_operation(&db, &operation).await?;
+    character::db::update_character_position(&db, &current_character, Some(body.position)).await?;
 
     Ok(Json(OperationBody::render(operation)))
 }

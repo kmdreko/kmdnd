@@ -186,7 +186,7 @@ pub struct EquipmentEntry {
     pub item_id: ItemId,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub struct Position {
     pub x: f32,
     pub y: f32,
@@ -199,6 +199,6 @@ impl Position {
         let y = self.y - other.y;
         let z = self.z - other.z;
 
-        x * x + y * y + z * z
+        f32::sqrt(x * x + y * y + z * z)
     }
 }
