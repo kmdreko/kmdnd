@@ -69,8 +69,8 @@ pub enum RollType {
     Initiative,
     Check(AbilityOrSkillType),
     Save(AbilityOrSkillType),
-    HitRoll,
-    DamageRoll,
+    Hit,
+    Damage,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -139,6 +139,7 @@ pub enum Action {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attack {
     weapon_id: ItemId,
+    targets: Vec<CharacterId>,
 }
 
 pub type InteractionId = TypedId<Interaction>;
@@ -147,7 +148,7 @@ pub type InteractionId = TypedId<Interaction>;
 pub struct Interaction {
     id: InteractionId,
     character_id: CharacterId,
-    descriptor: RollType,
+    roll_type: RollType,
     result: Option<i32>,
 }
 

@@ -1,7 +1,7 @@
 use actix_web::web::{self, FormConfig, JsonConfig, PathConfig, QueryConfig};
 use actix_web::{App, HttpServer, ResponseError};
 use mongodb::Client;
-use tracing::info;
+use tracing::{info, Level};
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt::format::FmtSpan;
 
@@ -20,6 +20,7 @@ use error::Error;
 #[actix_web::main]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
         .with_span_events(FmtSpan::NEW)
         .compact()
         .init();

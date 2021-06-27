@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use futures::TryStreamExt;
 use mongodb::options::FindOptions;
 use mongodb::{bson, Database};
@@ -8,7 +8,7 @@ use crate::character::CharacterId;
 use crate::encounter::{EncounterId, Round};
 use crate::error::Error;
 
-use super::{Operation, OperationId};
+use super::{Interaction, Operation, OperationId};
 
 const OPERATIONS: &str = "operations";
 
@@ -122,9 +122,10 @@ pub async fn update_operation_interaction_result(
     operation: &Operation,
     interaction_index: usize,
     result: i32,
-) -> Result<(), Error> {
+) -> Result<DateTime<Utc>, Error> {
+    let now = Utc::now();
     let old_modified_at = bson::DateTime::from_chrono(operation.modified_at);
-    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+    let new_modified_at = bson::DateTime::from_chrono(now);
     let result_path = format!("interactions.{}.result", interaction_index);
 
     let result = db
@@ -132,6 +133,35 @@ pub async fn update_operation_interaction_result(
         .update_one(
             bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
             bson::doc! { "$set": { result_path: result, "modified_at": new_modified_at } },
+            None,
+        )
+        .await?;
+
+    if result.matched_count == 0 {
+        return Err(Error::ConcurrentModificationDetected);
+    }
+
+    Ok(now)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn update_operation_push_interactions(
+    db: &Database,
+    operation: &Operation,
+    interactions: &[Interaction],
+) -> Result<(), Error> {
+    let interactions = bson::to_bson(interactions)?;
+    let old_modified_at = bson::DateTime::from_chrono(operation.modified_at);
+    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+
+    let result = db
+        .collection::<Operation>(OPERATIONS)
+        .update_one(
+            bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
+            bson::doc! {
+                "$push": { "interactions": { "$each": interactions } },
+                "$set": { "modified_at": new_modified_at }
+            },
             None,
         )
         .await?;

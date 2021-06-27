@@ -26,6 +26,7 @@ pub struct OperationBody {
     pub created_at: DateTime<Utc>,
     pub modified_at: DateTime<Utc>,
     pub operation_type: OperationType,
+    pub interactions: Vec<Interaction>,
 }
 
 impl OperationBody {
@@ -39,6 +40,7 @@ impl OperationBody {
             created_at: operation.created_at,
             modified_at: operation.modified_at,
             operation_type: operation.operation_type,
+            interactions: operation.interactions,
         }
     }
 }
@@ -195,9 +197,60 @@ async fn submit_interaction_result_to_operation(
         });
     }
 
+    let new_interactions = match &operation.operation_type {
+        OperationType::Action(action) => match action {
+            Action::Attack(attack) => {
+                match interaction.roll_type {
+                    RollType::Hit => {
+                        let target_character_id = attack.targets[0]; // TODO:
+                        let target_character = character::db::fetch_character_by_campaign_and_id(
+                            &db,
+                            campaign_id,
+                            target_character_id,
+                        )
+                        .await?
+                        .ok_or(Error::CharacterDoesNotExistInCampaign {
+                            campaign_id,
+                            character_id: target_character_id,
+                        })?;
+
+                        if target_character.stats.armor_class <= body.result {
+                            vec![Interaction {
+                                id: InteractionId::new(),
+                                character_id: interaction.character_id,
+                                roll_type: RollType::Damage,
+                                result: None,
+                            }]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    RollType::Damage => {
+                        // TODO: do actual damage
+                        vec![]
+                    }
+                    _ => {
+                        vec![]
+                    }
+                }
+            }
+            _ => {
+                vec![]
+            }
+        },
+        _ => {
+            vec![]
+        }
+    };
+
     interaction.result = Some(body.result);
 
-    db::update_operation_interaction_result(&db, &operation, index, body.result).await?;
+    let updated_at =
+        db::update_operation_interaction_result(&db, &operation, index, body.result).await?;
+    operation.modified_at = updated_at;
+    if !new_interactions.is_empty() {
+        db::update_operation_push_interactions(&db, &operation, &new_interactions).await?;
+    }
 
     Ok(Json(OperationBody::render(operation)))
 }
@@ -561,11 +614,14 @@ async fn take_action_in_current_encounter_in_campaign(
                 let interactions = vec![Interaction {
                     id: InteractionId::new(),
                     character_id: source_character.id,
-                    descriptor: RollType::HitRoll,
+                    roll_type: RollType::Hit,
                     result: None,
                 }];
 
-                let action = Action::Attack(Attack { weapon_id: item.id });
+                let action = Action::Attack(Attack {
+                    weapon_id: item.id,
+                    targets: vec![target_character.id],
+                });
 
                 (action, interactions)
             }
