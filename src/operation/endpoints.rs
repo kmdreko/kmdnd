@@ -11,8 +11,8 @@ use crate::campaign::{self, CampaignId};
 use crate::character::{self, CharacterId, Position};
 use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
-use crate::item::{self, ItemId};
-use crate::operation::{Action, Attack, Interaction, InteractionId};
+use crate::item::{self, DamageType, ItemId};
+use crate::operation::{Action, Attack, AttackMethod, Interaction, InteractionId};
 
 use super::{db, Move, Operation, OperationId, OperationType, RollType};
 
@@ -76,7 +76,15 @@ pub enum ActionTypeBody {
 #[derive(Clone, Debug, Deserialize)]
 pub struct AttackBody {
     pub target_character_id: CharacterId,
-    pub weapon_id: ItemId,
+    pub method: AttackMethodBody,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum AttackMethodBody {
+    Unarmed { damage_type: DamageType },
+    Weapon { weapon_id: ItemId },
+    ImprovisedWeapon { weapon_id: ItemId },
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -578,16 +586,33 @@ async fn take_action_in_current_encounter_in_campaign(
                     });
                 }
 
-                let item = item::db::fetch_item_by_id(&db, attack.weapon_id)
-                    .await?
-                    .ok_or(Error::ItemDoesNotExist {
-                        item_id: attack.weapon_id,
-                    })?;
+                let attack_method = match attack.method {
+                    AttackMethodBody::Unarmed { damage_type } => AttackMethod::Unarmed(damage_type),
+                    AttackMethodBody::Weapon { weapon_id } => {
+                        let item = item::db::fetch_item_by_id(&db, weapon_id)
+                            .await?
+                            .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
 
-                let weapon = item
-                    .item_type
-                    .as_weapon()
-                    .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+                        let weapon = item
+                            .item_type
+                            .into_weapon()
+                            .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+
+                        AttackMethod::Weapon(weapon)
+                    }
+                    AttackMethodBody::ImprovisedWeapon { weapon_id } => {
+                        let item = item::db::fetch_item_by_id(&db, weapon_id)
+                            .await?
+                            .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
+
+                        let weapon = item
+                            .item_type
+                            .into_weapon()
+                            .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+
+                        AttackMethod::ImprovisedWeapon(weapon)
+                    }
+                };
 
                 let source_position = source_character.position.as_ref().ok_or(
                     Error::CharacterDoesNotHavePosition {
@@ -600,13 +625,13 @@ async fn take_action_in_current_encounter_in_campaign(
                     },
                 )?;
 
-                let weapon_range = weapon.normal_range();
+                let attack_range = attack_method.normal_range();
                 let current_range = Position::distance(source_position, target_position);
-                if weapon_range < current_range {
+                if attack_range < current_range {
                     return Err(Error::AttackNotInRange {
                         request_character_id: source_character.id,
                         target_character_id: target_character.id,
-                        weapon_range,
+                        attack_range,
                         current_range,
                     });
                 }
@@ -619,7 +644,7 @@ async fn take_action_in_current_encounter_in_campaign(
                 }];
 
                 let action = Action::Attack(Attack {
-                    weapon_id: item.id,
+                    method: attack_method,
                     targets: vec![target_character.id],
                 });
 

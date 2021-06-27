@@ -7,7 +7,8 @@ use crate::character::CharacterId;
 use crate::character::Position;
 use crate::encounter::EncounterId;
 use crate::encounter::EncounterState;
-use crate::item::ItemId;
+use crate::item::DamageType;
+use crate::item::Weapon;
 use crate::typedid::{TypedId, TypedIdMarker};
 
 pub mod db;
@@ -123,7 +124,6 @@ pub struct Move {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "action_type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum Action {
-    Melee,
     Attack(Attack),
     CastSpell,
     Dash,
@@ -138,8 +138,26 @@ pub enum Action {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attack {
-    weapon_id: ItemId,
+    method: AttackMethod,
     targets: Vec<CharacterId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum AttackMethod {
+    Unarmed(DamageType),
+    Weapon(Weapon),
+    ImprovisedWeapon(Weapon), // TODO: maybe Item
+}
+
+impl AttackMethod {
+    pub fn normal_range(&self) -> f32 {
+        match self {
+            AttackMethod::Unarmed(_) => 5.0,
+            AttackMethod::Weapon(weapon) => weapon.normal_range(),
+            AttackMethod::ImprovisedWeapon(weapon) => weapon.normal_range(),
+        }
+    }
 }
 
 pub type InteractionId = TypedId<Interaction>;

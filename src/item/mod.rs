@@ -33,16 +33,16 @@ pub enum ItemType {
 }
 
 impl ItemType {
-    pub fn as_weapon(&self) -> Option<&Weapon> {
+    pub fn as_armor(&self) -> Option<&Armor> {
         match self {
-            ItemType::Weapon(weapon) => Some(weapon),
+            ItemType::Armor(armor) => Some(armor),
             _ => None,
         }
     }
 
-    pub fn as_armor(&self) -> Option<&Armor> {
+    pub fn into_weapon(self) -> Option<Weapon> {
         match self {
-            ItemType::Armor(armor) => Some(armor),
+            ItemType::Weapon(weapon) => Some(weapon),
             _ => None,
         }
     }

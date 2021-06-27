@@ -102,7 +102,7 @@ pub enum Error {
     AttackNotInRange {
         request_character_id: CharacterId,
         target_character_id: CharacterId,
-        weapon_range: f32,
+        attack_range: f32,
         current_range: f32,
     },
     WrongCharacterForInteraction {
