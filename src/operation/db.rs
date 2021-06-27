@@ -125,7 +125,7 @@ pub async fn update_operation_interaction_result(
 ) -> Result<(), Error> {
     let old_modified_at = bson::DateTime::from_chrono(operation.modified_at);
     let new_modified_at = bson::DateTime::from_chrono(Utc::now());
-    let result_path = format!("operation_type.interactions.{}.result", interaction_index);
+    let result_path = format!("interactions.{}.result", interaction_index);
 
     let result = db
         .collection::<Operation>(OPERATIONS)

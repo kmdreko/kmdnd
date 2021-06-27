@@ -1,3 +1,5 @@
+use std::vec;
+
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
 use chrono::{DateTime, Utc};
@@ -175,7 +177,7 @@ async fn submit_interaction_result_to_operation(
     )?;
 
     let (index, interaction) = operation
-        .interactions_mut()
+        .interactions
         .iter_mut()
         .enumerate()
         .find(|(_, inter)| inter.id == body.interaction_id)
@@ -267,6 +269,7 @@ async fn roll_in_current_encounter_in_campaign(
             roll: RollType::Initiative,
             result,
         },
+        interactions: vec![],
     };
 
     db::insert_operation(&db, &operation).await?;
@@ -443,6 +446,7 @@ async fn move_in_current_encounter_in_campaign(
             to_position: desired_position,
             feet: feet,
         }),
+        interactions: vec![],
     };
 
     db::insert_operation(&db, &operation).await?;
@@ -496,7 +500,7 @@ async fn take_action_in_current_encounter_in_campaign(
         }
     }
 
-    let action =
+    let (action, interactions) =
         match body.action_type {
             ActionTypeBody::Attack(attack) => {
                 let target_character = character::db::fetch_character_by_campaign_and_id(
@@ -554,15 +558,16 @@ async fn take_action_in_current_encounter_in_campaign(
                     });
                 }
 
-                Action::Attack(Attack {
-                    weapon_id: item.id,
-                    interactions: vec![Interaction {
-                        id: InteractionId::new(),
-                        character_id: source_character.id,
-                        descriptor: RollType::HitRoll,
-                        result: None,
-                    }],
-                })
+                let interactions = vec![Interaction {
+                    id: InteractionId::new(),
+                    character_id: source_character.id,
+                    descriptor: RollType::HitRoll,
+                    result: None,
+                }];
+
+                let action = Action::Attack(Attack { weapon_id: item.id });
+
+                (action, interactions)
             }
             _ => unimplemented!("the action is not yet implemented"),
         };
@@ -577,6 +582,7 @@ async fn take_action_in_current_encounter_in_campaign(
         created_at: now,
         modified_at: now,
         operation_type: OperationType::Action(action),
+        interactions,
     };
 
     db::insert_operation(&db, &operation).await?;

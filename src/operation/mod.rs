@@ -29,15 +29,7 @@ pub struct Operation {
     #[serde(with = "mongodb::bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub modified_at: DateTime<Utc>,
     pub operation_type: OperationType,
-}
-
-impl Operation {
-    pub fn interactions_mut(&mut self) -> &mut [Interaction] {
-        match &mut self.operation_type {
-            OperationType::Action(Action::Attack(attack)) => &mut attack.interactions,
-            _ => &mut [],
-        }
-    }
+    pub interactions: Vec<Interaction>,
 }
 
 impl TypedIdMarker for Operation {
@@ -147,7 +139,6 @@ pub enum Action {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attack {
     weapon_id: ItemId,
-    interactions: Vec<Interaction>,
 }
 
 pub type InteractionId = TypedId<Interaction>;
