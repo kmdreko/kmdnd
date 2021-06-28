@@ -12,10 +12,9 @@ use crate::character::{self, CharacterId, Position};
 use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{self, DamageType, ItemId};
-use crate::operation::spell::{Spell, SpellTargetType};
-use crate::operation::{
-    AbilityOrSkillType, AbilityType, Action, Attack, AttackMethod, Cast, Interaction, InteractionId,
-};
+use crate::operation::attack::{Attack, AttackMethod};
+use crate::operation::spell::Spell;
+use crate::operation::{Action, Interaction, InteractionId};
 
 use super::{db, Move, Operation, OperationId, OperationType, RollType, SpellTarget};
 
@@ -93,6 +92,40 @@ pub enum AttackMethodBody {
     Unarmed { damage_type: DamageType },
     Weapon { weapon_id: ItemId },
     ImprovisedWeapon { weapon_id: ItemId },
+}
+
+impl AttackMethodBody {
+    async fn into_attack_method(self, db: &Database) -> Result<AttackMethod, Error> {
+        let attack_method = match self {
+            AttackMethodBody::Unarmed { damage_type } => AttackMethod::Unarmed(damage_type),
+            AttackMethodBody::Weapon { weapon_id } => {
+                let item = item::db::fetch_item_by_id(&db, weapon_id)
+                    .await?
+                    .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
+
+                let weapon = item
+                    .item_type
+                    .into_weapon()
+                    .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+
+                AttackMethod::Weapon(weapon)
+            }
+            AttackMethodBody::ImprovisedWeapon { weapon_id } => {
+                let item = item::db::fetch_item_by_id(&db, weapon_id)
+                    .await?
+                    .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
+
+                let weapon = item
+                    .item_type
+                    .into_weapon()
+                    .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
+
+                AttackMethod::ImprovisedWeapon(weapon)
+            }
+        };
+
+        Ok(attack_method)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -216,39 +249,9 @@ async fn submit_interaction_result_to_operation(
     let new_interactions = match &operation.operation_type {
         OperationType::Action(action) => match action {
             Action::Attack(attack) => {
-                match interaction.roll_type {
-                    RollType::Hit => {
-                        let target_character_id = attack.targets[0]; // TODO:
-                        let target_character = character::db::fetch_character_by_campaign_and_id(
-                            &db,
-                            campaign_id,
-                            target_character_id,
-                        )
-                        .await?
-                        .ok_or(Error::CharacterDoesNotExistInCampaign {
-                            campaign_id,
-                            character_id: target_character_id,
-                        })?;
-
-                        if target_character.stats.armor_class <= body.result {
-                            vec![Interaction {
-                                id: InteractionId::new(),
-                                character_id: interaction.character_id,
-                                roll_type: RollType::Damage,
-                                result: None,
-                            }]
-                        } else {
-                            vec![]
-                        }
-                    }
-                    RollType::Damage => {
-                        // TODO: do actual damage
-                        vec![]
-                    }
-                    _ => {
-                        vec![]
-                    }
-                }
+                attack
+                    .handle_interaction_result(&db, campaign_id, &interaction, body.result)
+                    .await?
             }
             _ => {
                 vec![]
@@ -569,164 +572,30 @@ async fn take_action_in_current_encounter_in_campaign(
         }
     }
 
-    let (action, interactions) =
-        match body.action_type {
-            ActionTypeBody::Attack(attack) => {
-                let target_character = character::db::fetch_character_by_campaign_and_id(
-                    &db,
-                    campaign_id,
-                    attack.target_character_id,
-                )
-                .await?
-                .ok_or(Error::CharacterNotInCampaign {
-                    campaign_id,
-                    character_id: attack.target_character_id,
-                })?;
+    let (action, interactions) = match body.action_type {
+        ActionTypeBody::Attack(attack) => {
+            let attack_method = attack.method.into_attack_method(&db).await?;
 
-                if !encounter
-                    .character_ids
-                    .contains(&attack.target_character_id)
-                {
-                    return Err(Error::CharacterNotInEncounter {
-                        campaign_id,
-                        encounter_id: encounter.id,
-                        character_id: attack.target_character_id,
-                    });
-                }
+            let (attack, interactions) = Attack::submit(
+                &db,
+                campaign_id,
+                &encounter,
+                source_character,
+                attack.target_character_id,
+                attack_method,
+            )
+            .await?;
 
-                let attack_method = match attack.method {
-                    AttackMethodBody::Unarmed { damage_type } => AttackMethod::Unarmed(damage_type),
-                    AttackMethodBody::Weapon { weapon_id } => {
-                        let item = item::db::fetch_item_by_id(&db, weapon_id)
-                            .await?
-                            .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
+            (Action::Attack(attack), interactions)
+        }
+        ActionTypeBody::CastSpell(cast) => {
+            let (cast, interactions) =
+                Spell::submit(&db, campaign_id, &encounter, cast.name, cast.target).await?;
 
-                        let weapon = item
-                            .item_type
-                            .into_weapon()
-                            .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
-
-                        AttackMethod::Weapon(weapon)
-                    }
-                    AttackMethodBody::ImprovisedWeapon { weapon_id } => {
-                        let item = item::db::fetch_item_by_id(&db, weapon_id)
-                            .await?
-                            .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
-
-                        let weapon = item
-                            .item_type
-                            .into_weapon()
-                            .ok_or(Error::ItemIsNotAWeapon { item_id: item.id })?;
-
-                        AttackMethod::ImprovisedWeapon(weapon)
-                    }
-                };
-
-                let source_position = source_character.position.as_ref().ok_or(
-                    Error::CharacterDoesNotHavePosition {
-                        character_id: source_character.id,
-                    },
-                )?;
-                let target_position = target_character.position.as_ref().ok_or(
-                    Error::CharacterDoesNotHavePosition {
-                        character_id: target_character.id,
-                    },
-                )?;
-
-                let attack_range = attack_method.normal_range();
-                let current_range = Position::distance(source_position, target_position);
-                if attack_range < current_range {
-                    return Err(Error::AttackNotInRange {
-                        request_character_id: source_character.id,
-                        target_character_id: target_character.id,
-                        attack_range,
-                        current_range,
-                    });
-                }
-
-                let interactions = vec![Interaction {
-                    id: InteractionId::new(),
-                    character_id: source_character.id,
-                    roll_type: RollType::Hit,
-                    result: None,
-                }];
-
-                let action = Action::Attack(Attack {
-                    method: attack_method,
-                    targets: vec![target_character.id],
-                });
-
-                (action, interactions)
-            }
-            ActionTypeBody::CastSpell(cast) => {
-                let spell = Spell::fetch_spell_by_name(&cast.name)
-                    .ok_or(Error::SpellDoesNotExist { name: cast.name })?;
-
-                match spell.name.as_str() {
-                    "Fireball" => {
-                        let position = match cast.target {
-                            SpellTarget::Position { position } => position,
-                            unexpected_target => {
-                                return Err(Error::CastUsesWrongTargetType {
-                                    expected_type: SpellTargetType::Position,
-                                    provided_type: unexpected_target,
-                                })
-                            }
-                        };
-
-                        let mut characters_in_encounter = vec![];
-                        for &character_id in &encounter.character_ids {
-                            let character = character::db::fetch_character_by_campaign_and_id(
-                                &db,
-                                campaign_id,
-                                character_id,
-                            )
-                            .await?
-                            .ok_or(
-                                Error::CharacterDoesNotExistInCampaign {
-                                    campaign_id,
-                                    character_id,
-                                },
-                            )?;
-                            characters_in_encounter.push(character);
-                        }
-
-                        let characters_in_range: Vec<_> = characters_in_encounter
-                            .into_iter()
-                            .filter(|character| {
-                                character
-                                    .position
-                                    .map(|character_position| {
-                                        character_position.distance(&position) <= 150.0
-                                    })
-                                    .unwrap_or(false)
-                            })
-                            .collect();
-
-                        let interactions = characters_in_range
-                            .into_iter()
-                            .map(|character| Interaction {
-                                id: InteractionId::new(),
-                                character_id: character.id,
-                                roll_type: RollType::Save(AbilityOrSkillType::Ability(
-                                    AbilityType::Dexterity,
-                                )),
-                                result: None,
-                            })
-                            .collect();
-
-                        let action = Action::CastSpell(Cast {
-                            spell: spell.name,
-                            target: cast.target,
-                        });
-
-                        (action, interactions)
-                    }
-                    _ => unimplemented!("other spells not yet implemented"),
-                }
-            }
-            _ => unimplemented!("the action is not yet implemented"),
-        };
+            (Action::CastSpell(cast), interactions)
+        }
+        _ => unimplemented!("the action is not yet implemented"),
+    };
 
     let now = Utc::now();
     let operation = Operation {

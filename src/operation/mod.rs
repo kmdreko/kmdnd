@@ -7,14 +7,15 @@ use crate::character::CharacterId;
 use crate::character::Position;
 use crate::encounter::EncounterId;
 use crate::encounter::EncounterState;
-use crate::item::DamageType;
-use crate::item::Weapon;
 use crate::typedid::{TypedId, TypedIdMarker};
 
+pub mod attack;
 pub mod db;
 pub mod endpoints;
 pub mod spell;
 pub use endpoints::*;
+
+use attack::Attack;
 
 pub type OperationId = TypedId<Operation>;
 
@@ -149,30 +150,6 @@ pub enum SpellTarget {
     Creature { character_id: CharacterId },
     Position { position: Position },
     None,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Attack {
-    method: AttackMethod,
-    targets: Vec<CharacterId>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
-pub enum AttackMethod {
-    Unarmed(DamageType),
-    Weapon(Weapon),
-    ImprovisedWeapon(Weapon), // TODO: maybe Item
-}
-
-impl AttackMethod {
-    pub fn normal_range(&self) -> f32 {
-        match self {
-            AttackMethod::Unarmed(_) => 5.0,
-            AttackMethod::Weapon(weapon) => weapon.normal_range(),
-            AttackMethod::ImprovisedWeapon(weapon) => weapon.normal_range(),
-        }
-    }
 }
 
 pub type InteractionId = TypedId<Interaction>;

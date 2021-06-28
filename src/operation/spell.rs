@@ -1,4 +1,13 @@
+use mongodb::Database;
 use serde::{Deserialize, Serialize};
+
+use crate::campaign::CampaignId;
+use crate::character;
+use crate::encounter::Encounter;
+use crate::error::Error;
+use crate::operation::{AbilityOrSkillType, AbilityType, InteractionId, RollType, SpellTarget};
+
+use super::{Cast, Interaction};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Spell {
@@ -35,6 +44,79 @@ impl Spell {
             }),
             _ => None,
         }
+    }
+
+    pub async fn submit(
+        db: &Database,
+        campaign_id: CampaignId,
+        encounter: &Encounter,
+        name: String,
+        target: SpellTarget,
+    ) -> Result<(Cast, Vec<Interaction>), Error> {
+        let spell = Spell::fetch_spell_by_name(&name).ok_or(Error::SpellDoesNotExist { name })?;
+
+        let (cast, interactions) = match spell.name.as_str() {
+            "Fireball" => {
+                let position = match target {
+                    SpellTarget::Position { position } => position,
+                    unexpected_target => {
+                        return Err(Error::CastUsesWrongTargetType {
+                            expected_type: SpellTargetType::Position,
+                            provided_type: unexpected_target,
+                        })
+                    }
+                };
+
+                let mut characters_in_encounter = vec![];
+                for &character_id in &encounter.character_ids {
+                    let character = character::db::fetch_character_by_campaign_and_id(
+                        &db,
+                        campaign_id,
+                        character_id,
+                    )
+                    .await?
+                    .ok_or(Error::CharacterDoesNotExistInCampaign {
+                        campaign_id,
+                        character_id,
+                    })?;
+                    characters_in_encounter.push(character);
+                }
+
+                let characters_in_range: Vec<_> = characters_in_encounter
+                    .into_iter()
+                    .filter(|character| {
+                        character
+                            .position
+                            .map(|character_position| {
+                                character_position.distance(&position) <= 150.0
+                            })
+                            .unwrap_or(false)
+                    })
+                    .collect();
+
+                let interactions = characters_in_range
+                    .into_iter()
+                    .map(|character| Interaction {
+                        id: InteractionId::new(),
+                        character_id: character.id,
+                        roll_type: RollType::Save(AbilityOrSkillType::Ability(
+                            AbilityType::Dexterity,
+                        )),
+                        result: None,
+                    })
+                    .collect();
+
+                let cast = Cast {
+                    spell: spell.name,
+                    target,
+                };
+
+                (cast, interactions)
+            }
+            _ => unimplemented!("other spells not yet implemented"),
+        };
+
+        Ok((cast, interactions))
     }
 }
 
