@@ -98,9 +98,19 @@ pub struct Range {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum DamageType {
+    Acid,
     Bludgeoning,
+    Cold,
+    Fire,
+    Force,
+    Lightning,
+    Necrotic,
     Piercing,
+    Poison,
+    Psychic,
+    Radiant,
     Slashing,
+    Thunder,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

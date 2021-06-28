@@ -13,7 +13,8 @@ use crate::campaign::CampaignId;
 use crate::character::CharacterId;
 use crate::encounter::EncounterId;
 use crate::item::ItemId;
-use crate::operation::{InteractionId, OperationId};
+use crate::operation::spell::SpellTargetType;
+use crate::operation::{InteractionId, OperationId, SpellTarget};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -111,6 +112,13 @@ pub enum Error {
         expected_character_id: CharacterId,
         request_character_id: CharacterId,
     },
+    SpellDoesNotExist {
+        name: String,
+    },
+    CastUsesWrongTargetType {
+        expected_type: SpellTargetType,
+        provided_type: SpellTarget,
+    },
 
     // 500
     #[serde(serialize_with = "display")]
@@ -148,6 +156,8 @@ impl Error {
             Error::CharacterMovementExceeded { .. } => "E4091010",
             Error::AttackNotInRange { .. } => "E4091011",
             Error::WrongCharacterForInteraction { .. } => "E4091012",
+            Error::SpellDoesNotExist { .. } => "E4091013",
+            Error::CastUsesWrongTargetType { .. } => "E4091014",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
             Error::IoError(_) => "E5001002",
@@ -208,6 +218,10 @@ impl Error {
             Error::WrongCharacterForInteraction { .. } => {
                 "The requested interaction is intended for a different character"
             }
+            Error::SpellDoesNotExist { .. } => "The requested spell does not exist",
+            Error::CastUsesWrongTargetType { .. } => {
+                "The provided target is a different type than what is expected"
+            }
             Error::FailedDatabaseCall { .. } => {
                 "An error occurred when communicating with the database"
             }
@@ -246,6 +260,8 @@ impl ResponseError for Error {
             Error::CharacterMovementExceeded { .. } => StatusCode::CONFLICT,
             Error::AttackNotInRange { .. } => StatusCode::CONFLICT,
             Error::WrongCharacterForInteraction { .. } => StatusCode::CONFLICT,
+            Error::SpellDoesNotExist { .. } => StatusCode::CONFLICT,
+            Error::CastUsesWrongTargetType { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,

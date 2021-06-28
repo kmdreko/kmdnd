@@ -13,6 +13,7 @@ use crate::typedid::{TypedId, TypedIdMarker};
 
 pub mod db;
 pub mod endpoints;
+pub mod spell;
 pub use endpoints::*;
 
 pub type OperationId = TypedId<Operation>;
@@ -125,7 +126,7 @@ pub struct Move {
 #[serde(tag = "action_type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum Action {
     Attack(Attack),
-    CastSpell,
+    CastSpell(Cast),
     Dash,
     Disengage,
     Dodge,
@@ -134,6 +135,20 @@ pub enum Action {
     Ready,
     Search,
     UseObject,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Cast {
+    spell: String,
+    target: SpellTarget,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum SpellTarget {
+    Creature { character_id: CharacterId },
+    Position { position: Position },
+    None,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

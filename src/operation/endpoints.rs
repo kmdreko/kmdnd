@@ -12,9 +12,12 @@ use crate::character::{self, CharacterId, Position};
 use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{self, DamageType, ItemId};
-use crate::operation::{Action, Attack, AttackMethod, Interaction, InteractionId};
+use crate::operation::spell::{Spell, SpellTargetType};
+use crate::operation::{
+    AbilityOrSkillType, AbilityType, Action, Attack, AttackMethod, Cast, Interaction, InteractionId,
+};
 
-use super::{db, Move, Operation, OperationId, OperationType, RollType};
+use super::{db, Move, Operation, OperationId, OperationType, RollType, SpellTarget};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct OperationBody {
@@ -60,9 +63,8 @@ pub struct ActionBody {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum ActionTypeBody {
-    Melee,
     Attack(AttackBody),
-    CastSpell,
+    CastSpell(CastBody),
     Dash,
     Disengage,
     Dodge,
@@ -77,6 +79,12 @@ pub enum ActionTypeBody {
 pub struct AttackBody {
     pub target_character_id: CharacterId,
     pub method: AttackMethodBody,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct CastBody {
+    pub name: String,
+    pub target: SpellTarget,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -649,6 +657,73 @@ async fn take_action_in_current_encounter_in_campaign(
                 });
 
                 (action, interactions)
+            }
+            ActionTypeBody::CastSpell(cast) => {
+                let spell = Spell::fetch_spell_by_name(&cast.name)
+                    .ok_or(Error::SpellDoesNotExist { name: cast.name })?;
+
+                match spell.name.as_str() {
+                    "Fireball" => {
+                        let position = match cast.target {
+                            SpellTarget::Position { position } => position,
+                            unexpected_target => {
+                                return Err(Error::CastUsesWrongTargetType {
+                                    expected_type: SpellTargetType::Position,
+                                    provided_type: unexpected_target,
+                                })
+                            }
+                        };
+
+                        let mut characters_in_encounter = vec![];
+                        for &character_id in &encounter.character_ids {
+                            let character = character::db::fetch_character_by_campaign_and_id(
+                                &db,
+                                campaign_id,
+                                character_id,
+                            )
+                            .await?
+                            .ok_or(
+                                Error::CharacterDoesNotExistInCampaign {
+                                    campaign_id,
+                                    character_id,
+                                },
+                            )?;
+                            characters_in_encounter.push(character);
+                        }
+
+                        let characters_in_range: Vec<_> = characters_in_encounter
+                            .into_iter()
+                            .filter(|character| {
+                                character
+                                    .position
+                                    .map(|character_position| {
+                                        character_position.distance(&position) <= 150.0
+                                    })
+                                    .unwrap_or(false)
+                            })
+                            .collect();
+
+                        let interactions = characters_in_range
+                            .into_iter()
+                            .map(|character| Interaction {
+                                id: InteractionId::new(),
+                                character_id: character.id,
+                                roll_type: RollType::Save(AbilityOrSkillType::Ability(
+                                    AbilityType::Dexterity,
+                                )),
+                                result: None,
+                            })
+                            .collect();
+
+                        let action = Action::CastSpell(Cast {
+                            spell: spell.name,
+                            target: cast.target,
+                        });
+
+                        (action, interactions)
+                    }
+                    _ => unimplemented!("other spells not yet implemented"),
+                }
             }
             _ => unimplemented!("the action is not yet implemented"),
         };
