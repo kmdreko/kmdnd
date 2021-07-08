@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use futures::TryStreamExt;
 use mongodb::options::FindOptions;
 use mongodb::{bson, Database};
@@ -119,10 +119,10 @@ pub async fn fetch_operations_by_turn(
 #[tracing::instrument(skip(db))]
 pub async fn update_operation_interaction_result(
     db: &Database,
-    operation: &Operation,
+    mut operation: Operation,
     interaction_index: usize,
-    result: i32,
-) -> Result<DateTime<Utc>, Error> {
+    interaction_result: i32,
+) -> Result<Operation, Error> {
     let now = Utc::now();
     let old_modified_at = bson::DateTime::from_chrono(operation.modified_at);
     let new_modified_at = bson::DateTime::from_chrono(now);
@@ -132,7 +132,7 @@ pub async fn update_operation_interaction_result(
         .collection::<Operation>(OPERATIONS)
         .update_one(
             bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
-            bson::doc! { "$set": { result_path: result, "modified_at": new_modified_at } },
+            bson::doc! { "$set": { result_path: interaction_result, "modified_at": new_modified_at } },
             None,
         )
         .await?;
@@ -141,25 +141,29 @@ pub async fn update_operation_interaction_result(
         return Err(Error::ConcurrentModificationDetected);
     }
 
-    Ok(now)
+    operation.modified_at = now;
+    operation.interactions[interaction_index].result = Some(interaction_result);
+
+    Ok(operation)
 }
 
 #[tracing::instrument(skip(db))]
 pub async fn update_operation_push_interactions(
     db: &Database,
-    operation: &Operation,
-    interactions: &[Interaction],
-) -> Result<(), Error> {
-    let interactions = bson::to_bson(interactions)?;
+    mut operation: Operation,
+    interactions: Vec<Interaction>,
+) -> Result<Operation, Error> {
+    let now = Utc::now();
     let old_modified_at = bson::DateTime::from_chrono(operation.modified_at);
-    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+    let new_modified_at = bson::DateTime::from_chrono(now);
+    let new_interactions = bson::to_bson(&interactions)?;
 
     let result = db
         .collection::<Operation>(OPERATIONS)
         .update_one(
             bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
             bson::doc! {
-                "$push": { "interactions": { "$each": interactions } },
+                "$push": { "interactions": { "$each": new_interactions } },
                 "$set": { "modified_at": new_modified_at }
             },
             None,
@@ -170,5 +174,8 @@ pub async fn update_operation_push_interactions(
         return Err(Error::ConcurrentModificationDetected);
     }
 
-    Ok(())
+    operation.modified_at = now;
+    operation.interactions.extend(interactions);
+
+    Ok(operation)
 }

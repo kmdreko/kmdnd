@@ -84,18 +84,19 @@ pub async fn fetch_current_encounter_by_campaign(
 #[tracing::instrument(skip(db))]
 pub async fn update_encounter_state(
     db: &Database,
-    encounter: &Encounter,
+    mut encounter: Encounter,
     state: EncounterState,
-) -> Result<(), Error> {
-    let state = bson::to_document(&state)?;
+) -> Result<Encounter, Error> {
+    let now = Utc::now();
+    let new_state = bson::to_document(&state)?;
     let old_modified_at = bson::DateTime::from_chrono(encounter.modified_at);
-    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+    let new_modified_at = bson::DateTime::from_chrono(now);
 
     let result = db
         .collection::<Encounter>(ENCOUNTERS)
         .update_one(
             bson::doc! { "_id": encounter.id, "modified_at": old_modified_at },
-            bson::doc! { "$set": { "state": state, "modified_at": new_modified_at } },
+            bson::doc! { "$set": { "state": new_state, "modified_at": new_modified_at } },
             None,
         )
         .await?;
@@ -104,28 +105,32 @@ pub async fn update_encounter_state(
         return Err(Error::ConcurrentModificationDetected);
     }
 
-    Ok(())
+    encounter.modified_at = now;
+    encounter.state = state;
+
+    Ok(encounter)
 }
 
 #[tracing::instrument(skip(db))]
 pub async fn update_encounter_state_and_characters(
     db: &Database,
-    encounter: &Encounter,
+    mut encounter: Encounter,
     state: EncounterState,
-    character_ids: &Vec<CharacterId>,
-) -> Result<(), Error> {
-    let state = bson::to_document(&state)?;
-    let character_ids = bson::to_bson(character_ids)?;
+    character_ids: Vec<CharacterId>,
+) -> Result<Encounter, Error> {
+    let now = Utc::now();
     let old_modified_at = bson::DateTime::from_chrono(encounter.modified_at);
-    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+    let new_modified_at = bson::DateTime::from_chrono(now);
+    let new_state = bson::to_document(&state)?;
+    let new_character_ids = bson::to_bson(&character_ids)?;
 
     let result = db
         .collection::<Encounter>(ENCOUNTERS)
         .update_one(
             bson::doc! { "_id": encounter.id, "modified_at": old_modified_at },
             bson::doc! { "$set": {
-                "state": state,
-                "character_ids": character_ids,
+                "state": new_state,
+                "character_ids": new_character_ids,
                 "modified_at": new_modified_at
             } },
             None,
@@ -136,5 +141,9 @@ pub async fn update_encounter_state_and_characters(
         return Err(Error::ConcurrentModificationDetected);
     }
 
-    Ok(())
+    encounter.modified_at = now;
+    encounter.state = state;
+    encounter.character_ids = character_ids;
+
+    Ok(encounter)
 }

@@ -130,7 +130,7 @@ async fn finish_current_encounter_in_campaign(
     let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
     let encounter = db::assert_current_encounter_exists(&db, campaign.id).await?;
 
-    db::update_encounter_state(&db, &encounter, EncounterState::Finished).await?;
+    db::update_encounter_state(&db, encounter, EncounterState::Finished).await?;
 
     Ok(Json(SuccessBody {}))
 }

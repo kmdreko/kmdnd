@@ -249,11 +249,10 @@ async fn submit_interaction_result_to_operation(
 
     interaction.result = Some(body.result);
 
-    let updated_at =
-        db::update_operation_interaction_result(&db, &operation, index, body.result).await?;
-    operation.modified_at = updated_at;
+    operation = db::update_operation_interaction_result(&db, operation, index, body.result).await?;
     if !new_interactions.is_empty() {
-        db::update_operation_push_interactions(&db, &operation, &new_interactions).await?;
+        operation =
+            db::update_operation_push_interactions(&db, operation, new_interactions).await?;
     }
 
     Ok(Json(OperationBody::render(operation)))
@@ -383,18 +382,20 @@ async fn begin_current_encounter_in_campaign(
         encounter_id: encounter.id,
     })?;
 
-    encounter::db::update_encounter_state_and_characters(
+    let encounter = encounter::db::update_encounter_state_and_characters(
         &db,
-        &encounter,
+        encounter,
         EncounterState::Turn {
             round: 0,
             character_id: *first_character,
         },
-        &turn_order,
+        turn_order,
     )
     .await?;
 
-    let body = BeginEncounterResultBody { turn_order };
+    let body = BeginEncounterResultBody {
+        turn_order: encounter.character_ids,
+    };
 
     Ok(Json(body))
 }
