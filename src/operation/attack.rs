@@ -7,6 +7,7 @@ use crate::encounter::Encounter;
 use crate::error::Error;
 use crate::item::{DamageType, Weapon};
 use crate::operation::{Interaction, InteractionId, RollType};
+use crate::violations::Violation;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Attack {
@@ -22,7 +23,7 @@ impl Attack {
         source_character: Character,
         target_character_id: CharacterId,
         method: AttackMethod,
-    ) -> Result<(Attack, Vec<Interaction>), Error> {
+    ) -> Result<(Attack, Vec<Interaction>, Vec<Violation>), Error> {
         let target_character = character::db::fetch_character_by_campaign_and_id(
             &db,
             campaign_id,
@@ -57,10 +58,12 @@ impl Attack {
                     character_id: target_character.id,
                 })?;
 
+        let mut violations = vec![];
+
         let attack_range = method.normal_range();
         let current_range = Position::distance(source_position, target_position);
         if attack_range < current_range {
-            return Err(Error::AttackNotInRange {
+            violations.push(Violation::AttackNotInRange {
                 request_character_id: source_character.id,
                 target_character_id: target_character.id,
                 attack_range,
@@ -80,7 +83,7 @@ impl Attack {
             targets: vec![target_character.id],
         };
 
-        Ok((attack, interactions))
+        Ok((attack, interactions, violations))
     }
 
     pub async fn handle_interaction_result(

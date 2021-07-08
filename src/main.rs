@@ -14,6 +14,8 @@ mod operation;
 mod seed;
 mod typedid;
 mod user;
+mod utils;
+mod violations;
 
 use error::Error;
 

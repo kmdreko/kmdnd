@@ -14,7 +14,9 @@ use crate::error::Error;
 use crate::item::{self, DamageType, ItemId};
 use crate::operation::attack::{Attack, AttackMethod};
 use crate::operation::spell::Spell;
-use crate::operation::{Action, Interaction, InteractionId};
+use crate::operation::{Action, Interaction, InteractionId, Legality};
+use crate::utils::SuccessBody;
+use crate::violations::Violation;
 
 use super::{db, Move, Operation, OperationId, OperationType, RollType, SpellTarget};
 
@@ -51,12 +53,14 @@ impl OperationBody {
 pub struct MoveBody {
     pub character_id: CharacterId,
     pub position: Position,
+    pub ignore_violations: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ActionBody {
     pub character_id: CharacterId,
     pub action_type: ActionTypeBody,
+    pub ignore_violations: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -179,9 +183,8 @@ async fn get_operation_by_id_in_current_encounter_in_campaign(
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<OperationBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
-
-    campaign::db::assert_campaign_exists(&db, campaign_id).await?;
-    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign_id).await?;
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign.id).await?;
 
     let operation = db::fetch_operation_by_id(&db, operation_id).await?.ok_or(
         Error::OperationDoesNotExist {
@@ -193,6 +196,71 @@ async fn get_operation_by_id_in_current_encounter_in_campaign(
     Ok(Json(OperationBody::render(operation)))
 }
 
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/accept")]
+#[tracing::instrument(skip(db))]
+async fn accept_illegal_operation(
+    db: Data<Database>,
+    params: Path<(CampaignId, OperationId)>,
+) -> Result<Json<SuccessBody>, Error> {
+    let (campaign_id, operation_id) = params.into_inner();
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign.id).await?;
+
+    let operation = db::fetch_operation_by_id(&db, operation_id).await?.ok_or(
+        Error::OperationDoesNotExist {
+            encounter_id: encounter.id,
+            operation_id,
+        },
+    )?;
+
+    match operation.legality.clone() {
+        Legality::IllegalPending { violations } => {
+            db::update_operation_legality(&db, operation, Legality::IllegalApproved { violations })
+                .await?;
+        }
+        legality => {
+            return Err(Error::OperationIsNotPending {
+                operation_id: operation.id,
+                legality,
+            });
+        }
+    }
+
+    Ok(Json(SuccessBody {}))
+}
+
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/reject")]
+#[tracing::instrument(skip(db))]
+async fn reject_illegal_operation(
+    db: Data<Database>,
+    params: Path<(CampaignId, OperationId)>,
+) -> Result<Json<SuccessBody>, Error> {
+    let (campaign_id, operation_id) = params.into_inner();
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign.id).await?;
+
+    let operation = db::fetch_operation_by_id(&db, operation_id).await?.ok_or(
+        Error::OperationDoesNotExist {
+            encounter_id: encounter.id,
+            operation_id,
+        },
+    )?;
+
+    match operation.legality.clone() {
+        Legality::IllegalPending { .. } => {
+            db::delete_operation(&db, operation.id).await?;
+        }
+        legality => {
+            return Err(Error::OperationIsNotPending {
+                operation_id: operation.id,
+                legality,
+            });
+        }
+    }
+
+    Ok(Json(SuccessBody {}))
+}
+
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/interactions")]
 #[tracing::instrument(skip(db))]
 async fn submit_interaction_result_to_operation(
@@ -201,9 +269,8 @@ async fn submit_interaction_result_to_operation(
     body: Json<SubmitInteractionBody>,
 ) -> Result<Json<OperationBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
-
-    campaign::db::assert_campaign_exists(&db, campaign_id).await?;
-    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign_id).await?;
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign.id).await?;
 
     let mut operation = db::fetch_operation_by_id(&db, operation_id).await?.ok_or(
         Error::OperationDoesNotExist {
@@ -235,7 +302,7 @@ async fn submit_interaction_result_to_operation(
         OperationType::Action(action) => match action {
             Action::Attack(attack) => {
                 attack
-                    .handle_interaction_result(&db, campaign_id, &interaction, body.result)
+                    .handle_interaction_result(&db, campaign.id, &interaction, body.result)
                     .await?
             }
             _ => {
@@ -268,20 +335,20 @@ async fn roll_in_current_encounter_in_campaign(
     let campaign_id = params.into_inner();
     let body = body.into_inner();
 
-    campaign::db::assert_campaign_exists(&db, campaign_id).await?;
-    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign_id).await?;
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+    let encounter = encounter::db::assert_current_encounter_exists(&db, campaign.id).await?;
 
     let character =
-        character::db::fetch_character_by_campaign_and_id(&db, campaign_id, body.character_id)
+        character::db::fetch_character_by_campaign_and_id(&db, campaign.id, body.character_id)
             .await?
             .ok_or(Error::CharacterNotInCampaign {
-                campaign_id,
+                campaign_id: campaign.id,
                 character_id: body.character_id,
             })?;
 
     if !encounter.character_ids.contains(&body.character_id) {
         return Err(Error::CharacterNotInEncounter {
-            campaign_id,
+            campaign_id: campaign.id,
             encounter_id: encounter.id,
             character_id: body.character_id,
         });
@@ -299,7 +366,7 @@ async fn roll_in_current_encounter_in_campaign(
             });
     if character_already_rolled {
         return Err(Error::CharacterAlreadyRolledInitiative {
-            campaign_id,
+            campaign_id: campaign.id,
             encounter_id: encounter.id,
             character_id: body.character_id,
         });
@@ -310,7 +377,7 @@ async fn roll_in_current_encounter_in_campaign(
     let now = Utc::now();
     let operation = Operation {
         id: OperationId::new(),
-        campaign_id: campaign_id,
+        campaign_id: campaign.id,
         encounter_id: Some(encounter.id),
         encounter_state: Some(encounter.state),
         character_id: body.character_id,
@@ -321,6 +388,7 @@ async fn roll_in_current_encounter_in_campaign(
             result,
         },
         interactions: vec![],
+        legality: Legality::Legal,
     };
 
     db::insert_operation(&db, &operation).await?;
@@ -439,6 +507,7 @@ async fn move_in_current_encounter_in_campaign(
 
     let desired_position = body.position;
     let feet = Position::distance(&current_position, &desired_position);
+    let mut violations = vec![];
 
     if let EncounterState::Turn {
         round,
@@ -466,13 +535,17 @@ async fn move_in_current_encounter_in_campaign(
 
         let maximum_movement = current_character.stats.speed as f32;
         if maximum_movement < already_moved_feet + feet {
-            return Err(Error::CharacterMovementExceeded {
+            violations.push(Violation::CharacterMovementExceeded {
                 character_id,
                 maximum_movement,
                 current_movement: already_moved_feet,
                 request_movement: feet,
             });
         }
+    }
+
+    if !body.ignore_violations && !violations.is_empty() {
+        return Err(Error::OperationViolatesRules { violations });
     }
 
     let now = Utc::now();
@@ -489,6 +562,11 @@ async fn move_in_current_encounter_in_campaign(
             feet: feet,
         }),
         interactions: vec![],
+        legality: if violations.is_empty() {
+            Legality::Legal
+        } else {
+            Legality::IllegalPending { violations }
+        },
     };
 
     db::insert_operation(&db, &operation).await?;
@@ -537,11 +615,11 @@ async fn take_action_in_current_encounter_in_campaign(
         }
     }
 
-    let (action, interactions) = match body.action_type {
+    let (action, interactions, violations) = match body.action_type {
         ActionTypeBody::Attack(attack) => {
             let attack_method = attack.method.into_attack_method(&db).await?;
 
-            let (attack, interactions) = Attack::submit(
+            let (attack, interactions, violations) = Attack::submit(
                 &db,
                 campaign.id,
                 &encounter,
@@ -551,16 +629,20 @@ async fn take_action_in_current_encounter_in_campaign(
             )
             .await?;
 
-            (Action::Attack(attack), interactions)
+            (Action::Attack(attack), interactions, violations)
         }
         ActionTypeBody::CastSpell(cast) => {
-            let (cast, interactions) =
+            let (cast, interactions, violations) =
                 Spell::submit(&db, campaign_id, &encounter, cast.name, cast.target).await?;
 
-            (Action::CastSpell(cast), interactions)
+            (Action::CastSpell(cast), interactions, violations)
         }
         _ => unimplemented!("the action is not yet implemented"),
     };
+
+    if !body.ignore_violations && !violations.is_empty() {
+        return Err(Error::OperationViolatesRules { violations });
+    }
 
     let now = Utc::now();
     let operation = Operation {
@@ -573,6 +655,11 @@ async fn take_action_in_current_encounter_in_campaign(
         modified_at: now,
         operation_type: OperationType::Action(action),
         interactions,
+        legality: if violations.is_empty() {
+            Legality::Legal
+        } else {
+            Legality::IllegalPending { violations }
+        },
     };
 
     db::insert_operation(&db, &operation).await?;

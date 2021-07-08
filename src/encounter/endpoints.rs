@@ -7,11 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::campaign::{self, CampaignId};
 use crate::character::{self, CharacterId};
 use crate::error::Error;
+use crate::utils::SuccessBody;
 
 use super::{db, Encounter, EncounterId, EncounterState};
-
-#[derive(Clone, Debug, Serialize)]
-struct SuccessBody {}
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CreateEncounterBody {

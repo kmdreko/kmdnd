@@ -8,7 +8,7 @@ use crate::character::CharacterId;
 use crate::encounter::{EncounterId, Round};
 use crate::error::Error;
 
-use super::{Interaction, Operation, OperationId};
+use super::{Interaction, Legality, Operation, OperationId};
 
 const OPERATIONS: &str = "operations";
 
@@ -178,4 +178,46 @@ pub async fn update_operation_push_interactions(
     operation.interactions.extend(interactions);
 
     Ok(operation)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn update_operation_legality(
+    db: &Database,
+    mut operation: Operation,
+    legality: Legality,
+) -> Result<Operation, Error> {
+    let now = Utc::now();
+    let old_modified_at = bson::DateTime::from_chrono(operation.modified_at);
+    let new_modified_at = bson::DateTime::from_chrono(now);
+    let new_legality = bson::to_bson(&legality)?;
+
+    let result = db
+        .collection::<Operation>(OPERATIONS)
+        .update_one(
+            bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
+            bson::doc! {
+                "$push": { "legality": { "$each": new_legality } },
+                "$set": { "modified_at": new_modified_at }
+            },
+            None,
+        )
+        .await?;
+
+    if result.matched_count == 0 {
+        return Err(Error::ConcurrentModificationDetected);
+    }
+
+    operation.modified_at = now;
+    operation.legality = legality;
+
+    Ok(operation)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn delete_operation(db: &Database, operation_id: OperationId) -> Result<(), Error> {
+    db.collection::<Operation>(OPERATIONS)
+        .delete_one(bson::doc! { "_id": operation_id }, None)
+        .await?;
+
+    Ok(())
 }

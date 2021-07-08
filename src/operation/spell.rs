@@ -6,6 +6,7 @@ use crate::character;
 use crate::encounter::Encounter;
 use crate::error::Error;
 use crate::operation::{AbilityOrSkillType, AbilityType, InteractionId, RollType, SpellTarget};
+use crate::violations::Violation;
 
 use super::{Cast, Interaction};
 
@@ -52,10 +53,10 @@ impl Spell {
         encounter: &Encounter,
         name: String,
         target: SpellTarget,
-    ) -> Result<(Cast, Vec<Interaction>), Error> {
+    ) -> Result<(Cast, Vec<Interaction>, Vec<Violation>), Error> {
         let spell = Spell::fetch_spell_by_name(&name).ok_or(Error::SpellDoesNotExist { name })?;
 
-        let (cast, interactions) = match spell.name.as_str() {
+        let (cast, interactions, violations) = match spell.name.as_str() {
             "Fireball" => {
                 let position = match target {
                     SpellTarget::Position { position } => position,
@@ -66,6 +67,8 @@ impl Spell {
                         })
                     }
                 };
+
+                let violations = vec![];
 
                 let mut characters_in_encounter = vec![];
                 for &character_id in &encounter.character_ids {
@@ -111,12 +114,12 @@ impl Spell {
                     target,
                 };
 
-                (cast, interactions)
+                (cast, interactions, violations)
             }
             _ => unimplemented!("other spells not yet implemented"),
         };
 
-        Ok((cast, interactions))
+        Ok((cast, interactions, violations))
     }
 }
 

@@ -8,6 +8,7 @@ use crate::character::Position;
 use crate::encounter::EncounterId;
 use crate::encounter::EncounterState;
 use crate::typedid::{TypedId, TypedIdMarker};
+use crate::violations::Violation;
 
 pub mod attack;
 pub mod db;
@@ -33,6 +34,7 @@ pub struct Operation {
     pub modified_at: DateTime<Utc>,
     pub operation_type: OperationType,
     pub interactions: Vec<Interaction>,
+    pub legality: Legality,
 }
 
 impl TypedIdMarker for Operation {
@@ -166,4 +168,12 @@ impl TypedIdMarker for Interaction {
     fn tag() -> &'static str {
         "ITR"
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum Legality {
+    Legal,
+    IllegalPending { violations: Vec<Violation> },
+    IllegalApproved { violations: Vec<Violation> },
 }

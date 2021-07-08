@@ -14,7 +14,8 @@ use crate::character::CharacterId;
 use crate::encounter::EncounterId;
 use crate::item::ItemId;
 use crate::operation::spell::SpellTargetType;
-use crate::operation::{InteractionId, OperationId, SpellTarget};
+use crate::operation::{InteractionId, Legality, OperationId, SpellTarget};
+use crate::violations::Violation;
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -94,18 +95,6 @@ pub enum Error {
     CharacterDoesNotHavePosition {
         character_id: CharacterId,
     },
-    CharacterMovementExceeded {
-        character_id: CharacterId,
-        maximum_movement: f32,
-        current_movement: f32,
-        request_movement: f32,
-    },
-    AttackNotInRange {
-        request_character_id: CharacterId,
-        target_character_id: CharacterId,
-        attack_range: f32,
-        current_range: f32,
-    },
     WrongCharacterForInteraction {
         operation_id: OperationId,
         interaction_id: InteractionId,
@@ -118,6 +107,13 @@ pub enum Error {
     CastUsesWrongTargetType {
         expected_type: SpellTargetType,
         provided_type: SpellTarget,
+    },
+    OperationViolatesRules {
+        violations: Vec<Violation>,
+    },
+    OperationIsNotPending {
+        operation_id: OperationId,
+        legality: Legality,
     },
 
     // 500
@@ -153,11 +149,11 @@ impl Error {
             Error::NotThisPlayersTurn { .. } => "E4091007",
             Error::ItemIsNotAWeapon { .. } => "E4091008",
             Error::CharacterDoesNotHavePosition { .. } => "E4091009",
-            Error::CharacterMovementExceeded { .. } => "E4091010",
-            Error::AttackNotInRange { .. } => "E4091011",
             Error::WrongCharacterForInteraction { .. } => "E4091012",
             Error::SpellDoesNotExist { .. } => "E4091013",
             Error::CastUsesWrongTargetType { .. } => "E4091014",
+            Error::OperationViolatesRules { .. } => "E4091015",
+            Error::OperationIsNotPending { .. } => "E4091016",
             Error::FailedDatabaseCall(_) => "E5001000",
             Error::FailedToSerializeToBson(_) => "E5001001",
             Error::IoError(_) => "E5001002",
@@ -209,18 +205,16 @@ impl Error {
             Error::CharacterDoesNotHavePosition { .. } => {
                 "The requested character does not have a position"
             }
-            Error::CharacterMovementExceeded { .. } => {
-                "The requested character does not have enough speed to make this move"
-            }
-            Error::AttackNotInRange { .. } => {
-                "The requested attack does not have enough range to reach the target character"
-            }
             Error::WrongCharacterForInteraction { .. } => {
                 "The requested interaction is intended for a different character"
             }
             Error::SpellDoesNotExist { .. } => "The requested spell does not exist",
             Error::CastUsesWrongTargetType { .. } => {
                 "The provided target is a different type than what is expected"
+            }
+            Error::OperationViolatesRules { .. } => "The requested operation violates the rules",
+            Error::OperationIsNotPending { .. } => {
+                "The requested operation's legality is not pending"
             }
             Error::FailedDatabaseCall { .. } => {
                 "An error occurred when communicating with the database"
@@ -257,11 +251,11 @@ impl ResponseError for Error {
             Error::NotThisPlayersTurn { .. } => StatusCode::CONFLICT,
             Error::ItemIsNotAWeapon { .. } => StatusCode::CONFLICT,
             Error::CharacterDoesNotHavePosition { .. } => StatusCode::CONFLICT,
-            Error::CharacterMovementExceeded { .. } => StatusCode::CONFLICT,
-            Error::AttackNotInRange { .. } => StatusCode::CONFLICT,
             Error::WrongCharacterForInteraction { .. } => StatusCode::CONFLICT,
             Error::SpellDoesNotExist { .. } => StatusCode::CONFLICT,
             Error::CastUsesWrongTargetType { .. } => StatusCode::CONFLICT,
+            Error::OperationViolatesRules { .. } => StatusCode::CONFLICT,
+            Error::OperationIsNotPending { .. } => StatusCode::CONFLICT,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,
