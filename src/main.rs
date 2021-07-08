@@ -71,6 +71,8 @@ async fn main() -> Result<(), Error> {
             .service(encounter::endpoints::finish_current_encounter_in_campaign)
             .service(operation::endpoints::get_operations_in_current_encounter_in_campaign)
             .service(operation::endpoints::get_operation_by_id_in_current_encounter_in_campaign)
+            .service(operation::endpoints::approve_illegal_operation)
+            .service(operation::endpoints::reject_illegal_operation)
             .service(operation::endpoints::submit_interaction_result_to_operation)
             .service(operation::endpoints::roll_in_current_encounter_in_campaign)
             .service(operation::endpoints::begin_current_encounter_in_campaign)

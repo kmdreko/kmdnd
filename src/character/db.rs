@@ -68,18 +68,19 @@ pub async fn fetch_character_by_campaign_and_id(
 #[tracing::instrument(skip(db))]
 pub async fn update_character_position(
     db: &Database,
-    character: &Character,
+    mut character: Character,
     position: Option<Position>,
-) -> Result<(), Error> {
-    let position = bson::to_document(&position)?;
+) -> Result<Character, Error> {
+    let now = Utc::now();
     let old_modified_at = bson::DateTime::from_chrono(character.modified_at);
-    let new_modified_at = bson::DateTime::from_chrono(Utc::now());
+    let new_modified_at = bson::DateTime::from_chrono(now);
+    let new_position = bson::to_document(&position)?;
 
     let result = db
         .collection::<Character>(CHARACTERS)
         .update_one(
             bson::doc! { "_id": character.id, "modified_at": old_modified_at },
-            bson::doc! { "$set": { "position": position, "modified_at": new_modified_at } },
+            bson::doc! { "$set": { "position": new_position, "modified_at": new_modified_at } },
             None,
         )
         .await?;
@@ -88,5 +89,38 @@ pub async fn update_character_position(
         return Err(Error::ConcurrentModificationDetected);
     }
 
-    Ok(())
+    character.modified_at = now;
+    character.position = position;
+
+    Ok(character)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn update_character_hit_points(
+    db: &Database,
+    mut character: Character,
+    hit_points: i32,
+) -> Result<Character, Error> {
+    let now = Utc::now();
+    let old_modified_at = bson::DateTime::from_chrono(character.modified_at);
+    let new_modified_at = bson::DateTime::from_chrono(now);
+    let new_hit_points = bson::to_bson(&hit_points)?;
+
+    let result = db
+        .collection::<Character>(CHARACTERS)
+        .update_one(
+            bson::doc! { "_id": character.id, "modified_at": old_modified_at },
+            bson::doc! { "$set": { "current_hit_points": new_hit_points, "modified_at": new_modified_at } },
+            None,
+        )
+        .await?;
+
+    if result.matched_count == 0 {
+        return Err(Error::ConcurrentModificationDetected);
+    }
+
+    character.modified_at = now;
+    character.current_hit_points = hit_points;
+
+    Ok(character)
 }

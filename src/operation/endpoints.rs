@@ -13,7 +13,7 @@ use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{self, DamageType, ItemId};
 use crate::operation::attack::{Attack, AttackMethod};
-use crate::operation::spell::Spell;
+use crate::operation::spell::Cast;
 use crate::operation::{Action, Interaction, InteractionId, Legality};
 use crate::utils::SuccessBody;
 use crate::violations::Violation;
@@ -31,6 +31,7 @@ pub struct OperationBody {
     pub modified_at: DateTime<Utc>,
     pub operation_type: OperationType,
     pub interactions: Vec<Interaction>,
+    pub legality: Legality,
 }
 
 impl OperationBody {
@@ -45,6 +46,7 @@ impl OperationBody {
             modified_at: operation.modified_at,
             operation_type: operation.operation_type,
             interactions: operation.interactions,
+            legality: operation.legality,
         }
     }
 }
@@ -196,9 +198,9 @@ async fn get_operation_by_id_in_current_encounter_in_campaign(
     Ok(Json(OperationBody::render(operation)))
 }
 
-#[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/accept")]
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/approve")]
 #[tracing::instrument(skip(db))]
-async fn accept_illegal_operation(
+async fn approve_illegal_operation(
     db: Data<Database>,
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<SuccessBody>, Error> {
@@ -281,7 +283,7 @@ async fn submit_interaction_result_to_operation(
 
     let (index, interaction) = operation
         .interactions
-        .iter_mut()
+        .iter()
         .enumerate()
         .find(|(_, inter)| inter.id == body.interaction_id)
         .ok_or(Error::InteractionDoesNotExist {
@@ -305,6 +307,17 @@ async fn submit_interaction_result_to_operation(
                     .handle_interaction_result(&db, campaign.id, &interaction, body.result)
                     .await?
             }
+            Action::CastSpell(cast) => {
+                cast.handle_interaction_result(
+                    &db,
+                    campaign.id,
+                    &encounter,
+                    &operation,
+                    &interaction,
+                    body.result,
+                )
+                .await?
+            }
             _ => {
                 vec![]
             }
@@ -313,8 +326,6 @@ async fn submit_interaction_result_to_operation(
             vec![]
         }
     };
-
-    interaction.result = Some(body.result);
 
     operation = db::update_operation_interaction_result(&db, operation, index, body.result).await?;
     if !new_interactions.is_empty() {
@@ -570,7 +581,7 @@ async fn move_in_current_encounter_in_campaign(
     };
 
     db::insert_operation(&db, &operation).await?;
-    character::db::update_character_position(&db, &current_character, Some(body.position)).await?;
+    character::db::update_character_position(&db, current_character, Some(body.position)).await?;
 
     Ok(Json(OperationBody::render(operation)))
 }
@@ -632,8 +643,15 @@ async fn take_action_in_current_encounter_in_campaign(
             (Action::Attack(attack), interactions, violations)
         }
         ActionTypeBody::CastSpell(cast) => {
-            let (cast, interactions, violations) =
-                Spell::submit(&db, campaign_id, &encounter, cast.name, cast.target).await?;
+            let (cast, interactions, violations) = Cast::submit(
+                &db,
+                campaign_id,
+                &encounter,
+                source_character,
+                cast.name,
+                cast.target,
+            )
+            .await?;
 
             (Action::CastSpell(cast), interactions, violations)
         }

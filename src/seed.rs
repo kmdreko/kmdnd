@@ -109,6 +109,8 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
             y: 0.0,
             z: 0.0,
         }),
+        current_hit_points: 10,
+        maximum_hit_points: 10,
     };
 
     let mut character2 = Character {
@@ -135,6 +137,8 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
             y: 0.0,
             z: 0.0,
         }),
+        current_hit_points: 10,
+        maximum_hit_points: 10,
     };
 
     character1.recalculate_stats(db).await?;

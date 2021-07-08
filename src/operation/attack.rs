@@ -119,7 +119,22 @@ impl Attack {
                 }
             }
             RollType::Damage => {
-                // TODO: do actual damage
+                let target_character_id = self.targets[0]; // TODO:
+                let target_character = character::db::fetch_character_by_campaign_and_id(
+                    &db,
+                    campaign_id,
+                    target_character_id,
+                )
+                .await?
+                .ok_or(Error::CharacterDoesNotExistInCampaign {
+                    campaign_id,
+                    character_id: target_character_id,
+                })?;
+
+                let new_hit_points = i32::max(target_character.current_hit_points - result, 0);
+                character::db::update_character_hit_points(db, target_character, new_hit_points)
+                    .await?;
+
                 vec![]
             }
             _ => {

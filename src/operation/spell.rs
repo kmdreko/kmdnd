@@ -2,13 +2,203 @@ use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
-use crate::character;
+use crate::character::{self, Character, Position};
 use crate::encounter::Encounter;
 use crate::error::Error;
 use crate::operation::{AbilityOrSkillType, AbilityType, InteractionId, RollType, SpellTarget};
 use crate::violations::Violation;
 
-use super::{Cast, Interaction};
+use super::{Interaction, Operation};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Cast {
+    pub spell: String,
+    pub target: SpellTarget,
+}
+
+impl Cast {
+    pub async fn submit(
+        _db: &Database,
+        _campaign_id: CampaignId,
+        _encounter: &Encounter,
+        source_character: Character,
+        name: String,
+        target: SpellTarget,
+    ) -> Result<(Cast, Vec<Interaction>, Vec<Violation>), Error> {
+        let spell = Spell::fetch_spell_by_name(&name).ok_or(Error::SpellDoesNotExist { name })?;
+
+        let (cast, interactions, violations) = match spell.name.as_str() {
+            "Fireball" => {
+                let source_position = source_character.position.as_ref().ok_or(
+                    Error::CharacterDoesNotHavePosition {
+                        character_id: source_character.id,
+                    },
+                )?;
+
+                let cast_position = match &target {
+                    SpellTarget::Position { position } => position,
+                    unexpected_target => {
+                        return Err(Error::CastUsesWrongTargetType {
+                            expected_type: SpellTargetType::Position,
+                            provided_type: unexpected_target.clone(),
+                        })
+                    }
+                };
+
+                let mut violations = vec![];
+
+                let spell_range = match &spell.range {
+                    SpellRange::Feet(feet) => *feet,
+                    _ => {
+                        return Err(Error::ExistentialState(
+                            "Expected Fireball to have range in feet".to_string(),
+                        ))
+                    }
+                };
+                let cast_distance = Position::distance(source_position, cast_position);
+                if cast_distance > spell_range {
+                    violations.push(Violation::CastNotInRange {
+                        request_character_id: source_character.id,
+                        target_position: cast_position.clone(),
+                        spell_range,
+                        current_range: cast_distance,
+                    });
+                }
+
+                let interactions = vec![Interaction {
+                    id: InteractionId::new(),
+                    character_id: source_character.id,
+                    roll_type: RollType::Damage,
+                    result: None,
+                }];
+
+                let cast = Cast {
+                    spell: spell.name,
+                    target,
+                };
+
+                (cast, interactions, violations)
+            }
+            _ => unimplemented!("other spells not yet implemented"),
+        };
+
+        Ok((cast, interactions, violations))
+    }
+
+    pub async fn handle_interaction_result(
+        &self,
+        db: &Database,
+        campaign_id: CampaignId,
+        encounter: &Encounter,
+        operation: &Operation,
+        interaction: &Interaction,
+        result: i32,
+    ) -> Result<Vec<Interaction>, Error> {
+        let new_interactions = match self.spell.as_str() {
+            "Fireball" => match interaction.roll_type {
+                RollType::Damage => {
+                    let position = match &self.target {
+                        SpellTarget::Position { position } => position,
+                        unexpected_target => {
+                            return Err(Error::CastUsesWrongTargetType {
+                                expected_type: SpellTargetType::Position,
+                                provided_type: unexpected_target.clone(),
+                            })
+                        }
+                    };
+
+                    let mut characters_in_encounter = vec![];
+                    for &character_id in &encounter.character_ids {
+                        let character = character::db::fetch_character_by_campaign_and_id(
+                            &db,
+                            campaign_id,
+                            character_id,
+                        )
+                        .await?
+                        .ok_or(Error::CharacterDoesNotExistInCampaign {
+                            campaign_id,
+                            character_id,
+                        })?;
+                        characters_in_encounter.push(character);
+                    }
+
+                    let characters_in_range: Vec<_> = characters_in_encounter
+                        .into_iter()
+                        .filter(|character| {
+                            character
+                                .position
+                                .map(|character_position| {
+                                    character_position.distance(&position) <= 20.0
+                                    // TODO: stop hard coding stuff
+                                })
+                                .unwrap_or(false)
+                        })
+                        .collect();
+
+                    let interactions = characters_in_range
+                        .into_iter()
+                        .map(|character| Interaction {
+                            id: InteractionId::new(),
+                            character_id: character.id,
+                            roll_type: RollType::Save(AbilityOrSkillType::Ability(
+                                AbilityType::Dexterity,
+                            )),
+                            result: None,
+                        })
+                        .collect();
+
+                    interactions
+                }
+                RollType::Save(AbilityOrSkillType::Ability(AbilityType::Dexterity)) => {
+                    let target_character = character::db::fetch_character_by_campaign_and_id(
+                        &db,
+                        campaign_id,
+                        interaction.character_id,
+                    )
+                    .await?
+                    .ok_or(Error::CharacterDoesNotExistInCampaign {
+                        campaign_id,
+                        character_id: interaction.character_id,
+                    })?;
+
+                    let damage_interaction = operation
+                        .interactions
+                        .iter()
+                        .find(|i| i.roll_type == RollType::Damage)
+                        .ok_or(Error::ExistentialState(
+                            "Expected Fireball to have damage roll interaction".to_string(),
+                        ))?;
+                    let max_damage = damage_interaction.result.ok_or(Error::ExistentialState(
+                        "Expected Fireball damage roll to have result".to_string(),
+                    ))?;
+
+                    let difficulty_class = 8; // TODO: based on caster's class and stats
+                    let damage = if result >= difficulty_class {
+                        max_damage / 2
+                    } else {
+                        max_damage
+                    };
+
+                    let new_hit_points = i32::max(target_character.current_hit_points - damage, 0);
+                    character::db::update_character_hit_points(
+                        db,
+                        target_character,
+                        new_hit_points,
+                    )
+                    .await?;
+
+                    vec![]
+                }
+                _ => {
+                    vec![]
+                }
+            },
+            _ => vec![],
+        };
+
+        Ok(new_interactions)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Spell {
@@ -45,81 +235,6 @@ impl Spell {
             }),
             _ => None,
         }
-    }
-
-    pub async fn submit(
-        db: &Database,
-        campaign_id: CampaignId,
-        encounter: &Encounter,
-        name: String,
-        target: SpellTarget,
-    ) -> Result<(Cast, Vec<Interaction>, Vec<Violation>), Error> {
-        let spell = Spell::fetch_spell_by_name(&name).ok_or(Error::SpellDoesNotExist { name })?;
-
-        let (cast, interactions, violations) = match spell.name.as_str() {
-            "Fireball" => {
-                let position = match target {
-                    SpellTarget::Position { position } => position,
-                    unexpected_target => {
-                        return Err(Error::CastUsesWrongTargetType {
-                            expected_type: SpellTargetType::Position,
-                            provided_type: unexpected_target,
-                        })
-                    }
-                };
-
-                let violations = vec![];
-
-                let mut characters_in_encounter = vec![];
-                for &character_id in &encounter.character_ids {
-                    let character = character::db::fetch_character_by_campaign_and_id(
-                        &db,
-                        campaign_id,
-                        character_id,
-                    )
-                    .await?
-                    .ok_or(Error::CharacterDoesNotExistInCampaign {
-                        campaign_id,
-                        character_id,
-                    })?;
-                    characters_in_encounter.push(character);
-                }
-
-                let characters_in_range: Vec<_> = characters_in_encounter
-                    .into_iter()
-                    .filter(|character| {
-                        character
-                            .position
-                            .map(|character_position| {
-                                character_position.distance(&position) <= 150.0
-                            })
-                            .unwrap_or(false)
-                    })
-                    .collect();
-
-                let interactions = characters_in_range
-                    .into_iter()
-                    .map(|character| Interaction {
-                        id: InteractionId::new(),
-                        character_id: character.id,
-                        roll_type: RollType::Save(AbilityOrSkillType::Ability(
-                            AbilityType::Dexterity,
-                        )),
-                        result: None,
-                    })
-                    .collect();
-
-                let cast = Cast {
-                    spell: spell.name,
-                    target,
-                };
-
-                (cast, interactions, violations)
-            }
-            _ => unimplemented!("other spells not yet implemented"),
-        };
-
-        Ok((cast, interactions, violations))
     }
 }
 

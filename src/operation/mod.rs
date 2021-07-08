@@ -17,6 +17,7 @@ pub mod spell;
 pub use endpoints::*;
 
 use attack::Attack;
+use spell::Cast;
 
 pub type OperationId = TypedId<Operation>;
 
@@ -138,12 +139,6 @@ pub enum Action {
     Ready,
     Search,
     UseObject,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Cast {
-    spell: String,
-    target: SpellTarget,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -30,8 +30,9 @@ pub struct Character {
     pub stats: CharacterStats,
     pub equipment: Vec<EquipmentEntry>,
     pub position: Option<Position>,
-    // health: i32,
-    // effects: Vec<Effect>,
+    pub current_hit_points: i32,
+    pub maximum_hit_points: i32,
+    // conditions: Vec<Condition>,
 }
 
 impl Character {

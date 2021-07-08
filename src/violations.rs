@@ -1,4 +1,4 @@
-use crate::character::CharacterId;
+use crate::character::{CharacterId, Position};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,12 @@ pub enum Violation {
         request_character_id: CharacterId,
         target_character_id: CharacterId,
         attack_range: f32,
+        current_range: f32,
+    },
+    CastNotInRange {
+        request_character_id: CharacterId,
+        target_position: Position,
+        spell_range: f32,
         current_range: f32,
     },
 }

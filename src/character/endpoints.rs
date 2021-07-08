@@ -26,6 +26,8 @@ pub struct CharacterBody {
     pub stats: CharacterStats,
     pub equipment: Vec<ItemWithQuantityBody>,
     pub position: Option<Position>,
+    pub current_hit_points: i32,
+    pub maximum_hit_points: i32,
 }
 
 impl CharacterBody {
@@ -53,6 +55,8 @@ impl CharacterBody {
             stats: character.stats,
             equipment: equipment,
             position: character.position,
+            current_hit_points: character.current_hit_points,
+            maximum_hit_points: character.maximum_hit_points,
         })
     }
 }
@@ -85,6 +89,8 @@ async fn create_character_in_campaign(
         stats: Default::default(),
         equipment: vec![],
         position: None,
+        current_hit_points: 10,
+        maximum_hit_points: 10,
     };
     character.recalculate_stats(&db).await?;
 

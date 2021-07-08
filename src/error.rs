@@ -117,6 +117,7 @@ pub enum Error {
     },
 
     // 500
+    ExistentialState(String),
     #[serde(serialize_with = "display")]
     FailedDatabaseCall(DatabaseError),
     #[serde(serialize_with = "display")]
@@ -154,9 +155,10 @@ impl Error {
             Error::CastUsesWrongTargetType { .. } => "E4091014",
             Error::OperationViolatesRules { .. } => "E4091015",
             Error::OperationIsNotPending { .. } => "E4091016",
-            Error::FailedDatabaseCall(_) => "E5001000",
-            Error::FailedToSerializeToBson(_) => "E5001001",
-            Error::IoError(_) => "E5001002",
+            Error::ExistentialState(_) => "E5001000",
+            Error::FailedDatabaseCall(_) => "E5001001",
+            Error::FailedToSerializeToBson(_) => "E5001002",
+            Error::IoError(_) => "E5001003",
         }
     }
 
@@ -216,13 +218,14 @@ impl Error {
             Error::OperationIsNotPending { .. } => {
                 "The requested operation's legality is not pending"
             }
-            Error::FailedDatabaseCall { .. } => {
+            Error::ExistentialState(_) => "The server detected an invalid state",
+            Error::FailedDatabaseCall(_) => {
                 "An error occurred when communicating with the database"
             }
-            Error::FailedToSerializeToBson { .. } => {
+            Error::FailedToSerializeToBson(_) => {
                 "An error occurred when serializing an object to bson"
             }
-            Error::IoError { .. } => "An error occurred during an I/O operation",
+            Error::IoError(_) => "An error occurred during an I/O operation",
         }
     }
 }
@@ -256,6 +259,7 @@ impl ResponseError for Error {
             Error::CastUsesWrongTargetType { .. } => StatusCode::CONFLICT,
             Error::OperationViolatesRules { .. } => StatusCode::CONFLICT,
             Error::OperationIsNotPending { .. } => StatusCode::CONFLICT,
+            Error::ExistentialState(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,

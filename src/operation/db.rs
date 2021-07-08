@@ -195,10 +195,7 @@ pub async fn update_operation_legality(
         .collection::<Operation>(OPERATIONS)
         .update_one(
             bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
-            bson::doc! {
-                "$push": { "legality": { "$each": new_legality } },
-                "$set": { "modified_at": new_modified_at }
-            },
+            bson::doc! { "$set": { "legality": new_legality, "modified_at": new_modified_at } },
             None,
         )
         .await?;
