@@ -73,9 +73,7 @@ async fn create_character_in_campaign(
     let campaign_id = params.into_inner();
     let body = body.into_inner();
 
-    campaign::db::fetch_campaign_by_id(&db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+    campaign::db::assert_campaign_exists(&db, campaign_id).await?;
 
     let now = Utc::now();
     let mut character = Character {
@@ -103,9 +101,7 @@ async fn get_characters_in_campaign(
 ) -> Result<Json<Vec<CharacterBody>>, Error> {
     let campaign_id = params.into_inner();
 
-    campaign::db::fetch_campaign_by_id(&db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+    campaign::db::assert_campaign_exists(&db, campaign_id).await?;
 
     let characters = db::fetch_characters_by_campaign(&db, campaign_id).await?;
 
@@ -125,9 +121,7 @@ async fn get_character_in_campaign_by_id(
 ) -> Result<Json<CharacterBody>, Error> {
     let (campaign_id, character_id) = params.into_inner();
 
-    campaign::db::fetch_campaign_by_id(&db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+    campaign::db::assert_campaign_exists(&db, campaign_id).await?;
 
     let character = db::fetch_character_by_campaign_and_id(&db, campaign_id, character_id)
         .await?

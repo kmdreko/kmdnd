@@ -49,25 +49,23 @@ async fn create_encounter_in_campaign(
     body: Json<CreateEncounterBody>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+
     let body = body.into_inner();
 
-    campaign::db::fetch_campaign_by_id(&db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
-
-    let current_encounter = db::fetch_current_encounter_by_campaign(&db, campaign_id).await?;
+    let current_encounter = db::fetch_current_encounter_by_campaign(&db, campaign.id).await?;
     if let Some(current_encounter) = current_encounter {
         return Err(Error::CurrentEncounterAlreadyExists {
-            campaign_id,
+            campaign_id: campaign.id,
             encounter_id: current_encounter.id,
         });
     }
 
-    let characters = character::db::fetch_characters_by_campaign(&db, campaign_id).await?;
+    let characters = character::db::fetch_characters_by_campaign(&db, campaign.id).await?;
     for character_id in &body.character_ids {
         if !characters.iter().any(|c| c.id == *character_id) {
             return Err(Error::CharacterNotInCampaign {
-                campaign_id,
+                campaign_id: campaign.id,
                 character_id: *character_id,
             });
         }
@@ -76,7 +74,7 @@ async fn create_encounter_in_campaign(
     let now = Utc::now();
     let encounter = Encounter {
         id: EncounterId::new(),
-        campaign_id,
+        campaign_id: campaign.id,
         created_at: now,
         modified_at: now,
         character_ids: body.character_ids,
@@ -95,13 +93,9 @@ async fn get_encounters_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<EncounterBody>>, Error> {
     let campaign_id = params.into_inner();
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
 
-    campaign::db::fetch_campaign_by_id(&db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
-
-    let encounters = db::fetch_encounters_by_campaign(&db, campaign_id).await?;
-
+    let encounters = db::fetch_encounters_by_campaign(&db, campaign.id).await?;
     let body = encounters
         .into_iter()
         .map(|encounter| EncounterBody::render(encounter))
@@ -117,12 +111,9 @@ async fn get_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
 
-    campaign::db::fetch_campaign_by_id(&db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
-
-    let encounter = db::fetch_current_encounter_by_campaign(&db, campaign_id)
+    let encounter = db::fetch_current_encounter_by_campaign(&db, campaign.id)
         .await?
         .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
 
@@ -136,14 +127,8 @@ async fn finish_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<SuccessBody>, Error> {
     let campaign_id = params.into_inner();
-
-    campaign::db::fetch_campaign_by_id(&db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
-
-    let encounter = db::fetch_current_encounter_by_campaign(&db, campaign_id)
-        .await?
-        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+    let encounter = db::assert_current_encounter_exists(&db, campaign.id).await?;
 
     db::update_encounter_state(&db, &encounter, EncounterState::Finished).await?;
 

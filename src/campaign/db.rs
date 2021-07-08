@@ -32,6 +32,16 @@ pub async fn fetch_campaigns(db: &Database) -> Result<Vec<Campaign>, Error> {
 }
 
 #[tracing::instrument(skip(db))]
+pub async fn assert_campaign_exists(
+    db: &Database,
+    campaign_id: CampaignId,
+) -> Result<Campaign, Error> {
+    fetch_campaign_by_id(db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignDoesNotExist { campaign_id })
+}
+
+#[tracing::instrument(skip(db))]
 pub async fn fetch_campaign_by_id(
     db: &Database,
     campaign_id: CampaignId,

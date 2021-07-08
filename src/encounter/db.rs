@@ -54,6 +54,16 @@ pub async fn fetch_encounters_by_campaign(
 }
 
 #[tracing::instrument(skip(db))]
+pub async fn assert_current_encounter_exists(
+    db: &Database,
+    campaign_id: CampaignId,
+) -> Result<Encounter, Error> {
+    fetch_current_encounter_by_campaign(db, campaign_id)
+        .await?
+        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })
+}
+
+#[tracing::instrument(skip(db))]
 pub async fn fetch_current_encounter_by_campaign(
     db: &Database,
     campaign_id: CampaignId,
