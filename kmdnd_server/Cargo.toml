@@ -1,0 +1,19 @@
+[package]
+name = "kmdnd_server"
+version = "0.1.0"
+authors = ["Trevor Wilson <kmdreko@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+actix-web = "4.0.0-beta"
+futures = "0.3.0"
+mongodb = { version = "2.0.0-beta", features = ["bson-chrono-0_4"] }
+serde = { version = "1.0.0", features = ["derive"] }
+tokio = { version = "1.6.0", features = ["full"] }
+tracing = "0.1.0"
+tracing-actix-web = "0.4.0-beta"
+tracing-subscriber = "0.2.0"
+uuid = { version = "0.8.0", features = ["serde"] }
+chrono = { version = "0.4.0", features = ["serde"] }
+serde_json = "1.0.0"
+rand = "0.8.4"

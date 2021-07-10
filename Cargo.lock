@@ -886,7 +886,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kmdnd"
+name = "kmdnd_server"
 version = "0.1.0"
 dependencies = [
  "actix-web",
