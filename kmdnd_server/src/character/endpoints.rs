@@ -6,6 +6,8 @@ use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::{self, CampaignId};
+use crate::character::race::Race;
+use crate::character::Proficiencies;
 use crate::error::Error;
 use crate::item::{self, ItemBody};
 
@@ -91,6 +93,13 @@ async fn create_character_in_campaign(
         position: None,
         current_hit_points: 10,
         maximum_hit_points: 10,
+        race: Race::Human,
+        proficiencies: Proficiencies {
+            armor: vec![],
+            tool: vec![],
+            saving_throws: vec![],
+            skills: vec![],
+        },
     };
     character.recalculate_stats(&db).await?;
 

@@ -2,12 +2,17 @@ use chrono::Utc;
 use mongodb::Database;
 
 use crate::campaign::{self, Campaign};
-use crate::character::{self, Character, CharacterOwner, CharacterStats, EquipmentEntry, Position};
+use crate::character::race::Race;
+use crate::character::{
+    self, Character, CharacterOwner, CharacterStats, EquipmentEntry, Position, Proficiencies,
+    ToolType,
+};
 use crate::encounter::{self, Encounter, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{
     self, Armor, ArmorType, DamageType, Dice, Item, ItemId, ItemType, Range, Weapon, WeaponProperty,
 };
+use crate::operation::{AbilityType, SkillType};
 
 pub async fn seed(db: &Database) -> Result<(), Error> {
     db.drop(None).await?;
@@ -111,6 +116,13 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
         }),
         current_hit_points: 10,
         maximum_hit_points: 10,
+        race: Race::HalfOrc,
+        proficiencies: Proficiencies {
+            armor: vec![ArmorType::Light, ArmorType::Medium, ArmorType::Shield],
+            tool: vec![],
+            saving_throws: vec![AbilityType::Strength, AbilityType::Constitution],
+            skills: vec![SkillType::Athletics, SkillType::Intimidation],
+        },
     };
 
     let mut character2 = Character {
@@ -139,6 +151,13 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
         }),
         current_hit_points: 10,
         maximum_hit_points: 10,
+        race: Race::Gnome,
+        proficiencies: Proficiencies {
+            armor: vec![ArmorType::Light],
+            tool: vec![ToolType::Lute, ToolType::Shawm, ToolType::PanFlute],
+            saving_throws: vec![AbilityType::Dexterity, AbilityType::Charisma],
+            skills: vec![SkillType::SleightOfHand, SkillType::Nature],
+        },
     };
 
     character1.recalculate_stats(db).await?;

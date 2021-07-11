@@ -7,13 +7,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::error::Error;
-use crate::item::{self, ItemId};
+use crate::item::{self, ArmorType, ItemId};
+use crate::operation::{AbilityType, SkillType};
 use crate::typedid::{TypedId, TypedIdMarker};
 use crate::user::UserId;
 
 pub mod db;
 pub mod endpoints;
+pub mod race;
 pub use endpoints::*;
+
+use self::race::Race;
 
 pub type CharacterId = TypedId<Character>;
 
@@ -32,6 +36,8 @@ pub struct Character {
     pub position: Option<Position>,
     pub current_hit_points: i32,
     pub maximum_hit_points: i32,
+    pub race: Race,
+    pub proficiencies: Proficiencies,
     // conditions: Vec<Condition>,
 }
 
@@ -202,4 +208,62 @@ impl Position {
 
         f32::sqrt(x * x + y * y + z * z)
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Proficiencies {
+    pub armor: Vec<ArmorType>,
+    pub tool: Vec<ToolType>,
+    pub saving_throws: Vec<AbilityType>,
+    pub skills: Vec<SkillType>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum ToolType {
+    // Artisan Tools
+    AlchemistsSupplies,
+    BrewersSupplies,
+    CalligrapherSupplies,
+    CarpentersTools,
+    CartographersTools,
+    CobblersTools,
+    CooksUtensils,
+    GlassblowersTools,
+    JewelersTools,
+    LeatherworkersTools,
+    MasonsTools,
+    PainterTupplies,
+    PottersTools,
+    SmithsTools,
+    TinkerssTools,
+    WeaversTools,
+    WoodcarversTools,
+
+    DisguiseKit,
+
+    ForgeryKit,
+
+    // Gaming Sets
+    DiceSet,
+    PlayingCardSet,
+
+    HerbalismKit,
+
+    // Musical Instruments
+    Bagpipes,
+    Drum,
+    Dulcimer,
+    Flute,
+    Lute,
+    Lyre,
+    Horn,
+    PanFlute,
+    Shawm,
+    Viol,
+
+    NavigatorTools,
+
+    PoisonerKit,
+    TheivesTools,
 }

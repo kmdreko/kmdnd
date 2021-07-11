@@ -138,6 +138,7 @@ impl Armor {
             ArmorType::Light => character.stats.abilities.dexterity_modifier(),
             ArmorType::Medium => i32::min(2, character.stats.abilities.dexterity_modifier()),
             ArmorType::Heavy => 0,
+            ArmorType::Shield => 2,
         };
 
         self.base_armor_class + ac_from_dex
@@ -150,4 +151,5 @@ pub enum ArmorType {
     Light,
     Medium,
     Heavy,
+    Shield,
 }
