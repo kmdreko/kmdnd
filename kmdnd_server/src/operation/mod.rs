@@ -70,20 +70,131 @@ impl OperationType {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "SCREAMING-KEBAB-CASE")]
+#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum RollType {
     Initiative,
-    Check(AbilityOrSkillType),
-    Save(AbilityOrSkillType),
+    StrengthCheck,
+    DexterityCheck,
+    ConstitutionCheck,
+    IntelligenceCheck,
+    WisdomCheck,
+    CharismaCheck,
+    AcrobaticsCheck,
+    AnimalHandlingCheck,
+    ArcanaCheck,
+    AthleticsCheck,
+    DeceptionCheck,
+    HistoryCheck,
+    InsightCheck,
+    IntimidationCheck,
+    InvestigationCheck,
+    MedicineCheck,
+    NatureCheck,
+    PerceptionCheck,
+    PerformanceCheck,
+    PersuasionCheck,
+    ReligionCheck,
+    SleightOfHandCheck,
+    StealthCheck,
+    SurvivalCheck,
+    StrengthSave,
+    DexteritySave,
+    ConstitutionSave,
+    IntelligenceSave,
+    WisdomSave,
+    CharismaSave,
     Hit,
     Damage,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum AbilityOrSkillType {
-    Ability(AbilityType),
-    Skill(SkillType),
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RollCategory {
+    Initiative,
+    SkillCheck(SkillType),
+    AbilityCheck(AbilityType),
+    Save(AbilityType),
+    Hit,
+    Damage,
+}
+
+impl From<RollType> for RollCategory {
+    fn from(roll: RollType) -> Self {
+        match roll {
+            RollType::Initiative => RollCategory::Initiative,
+            RollType::StrengthCheck => RollCategory::AbilityCheck(AbilityType::Strength),
+            RollType::DexterityCheck => RollCategory::AbilityCheck(AbilityType::Dexterity),
+            RollType::ConstitutionCheck => RollCategory::AbilityCheck(AbilityType::Constitution),
+            RollType::IntelligenceCheck => RollCategory::AbilityCheck(AbilityType::Intelligence),
+            RollType::WisdomCheck => RollCategory::AbilityCheck(AbilityType::Wisdom),
+            RollType::CharismaCheck => RollCategory::AbilityCheck(AbilityType::Charisma),
+            RollType::AcrobaticsCheck => RollCategory::SkillCheck(SkillType::Acrobatics),
+            RollType::AnimalHandlingCheck => RollCategory::SkillCheck(SkillType::AnimalHandling),
+            RollType::ArcanaCheck => RollCategory::SkillCheck(SkillType::Arcana),
+            RollType::AthleticsCheck => RollCategory::SkillCheck(SkillType::Athletics),
+            RollType::DeceptionCheck => RollCategory::SkillCheck(SkillType::Deception),
+            RollType::HistoryCheck => RollCategory::SkillCheck(SkillType::History),
+            RollType::InsightCheck => RollCategory::SkillCheck(SkillType::Insight),
+            RollType::IntimidationCheck => RollCategory::SkillCheck(SkillType::Intimidation),
+            RollType::InvestigationCheck => RollCategory::SkillCheck(SkillType::Investigation),
+            RollType::MedicineCheck => RollCategory::SkillCheck(SkillType::Medicine),
+            RollType::NatureCheck => RollCategory::SkillCheck(SkillType::Nature),
+            RollType::PerceptionCheck => RollCategory::SkillCheck(SkillType::Perception),
+            RollType::PerformanceCheck => RollCategory::SkillCheck(SkillType::Performance),
+            RollType::PersuasionCheck => RollCategory::SkillCheck(SkillType::Persuasion),
+            RollType::ReligionCheck => RollCategory::SkillCheck(SkillType::Religion),
+            RollType::SleightOfHandCheck => RollCategory::SkillCheck(SkillType::SleightOfHand),
+            RollType::StealthCheck => RollCategory::SkillCheck(SkillType::Stealth),
+            RollType::SurvivalCheck => RollCategory::SkillCheck(SkillType::Survival),
+            RollType::StrengthSave => RollCategory::Save(AbilityType::Strength),
+            RollType::DexteritySave => RollCategory::Save(AbilityType::Dexterity),
+            RollType::ConstitutionSave => RollCategory::Save(AbilityType::Constitution),
+            RollType::IntelligenceSave => RollCategory::Save(AbilityType::Intelligence),
+            RollType::WisdomSave => RollCategory::Save(AbilityType::Wisdom),
+            RollType::CharismaSave => RollCategory::Save(AbilityType::Charisma),
+            RollType::Hit => RollCategory::Hit,
+            RollType::Damage => RollCategory::Damage,
+        }
+    }
+}
+
+impl Into<RollType> for RollCategory {
+    fn into(self) -> RollType {
+        match self {
+            RollCategory::Initiative => RollType::Initiative,
+            RollCategory::AbilityCheck(AbilityType::Strength) => RollType::StrengthCheck,
+            RollCategory::AbilityCheck(AbilityType::Dexterity) => RollType::DexterityCheck,
+            RollCategory::AbilityCheck(AbilityType::Constitution) => RollType::ConstitutionCheck,
+            RollCategory::AbilityCheck(AbilityType::Intelligence) => RollType::IntelligenceCheck,
+            RollCategory::AbilityCheck(AbilityType::Wisdom) => RollType::WisdomCheck,
+            RollCategory::AbilityCheck(AbilityType::Charisma) => RollType::CharismaCheck,
+            RollCategory::SkillCheck(SkillType::Acrobatics) => RollType::AcrobaticsCheck,
+            RollCategory::SkillCheck(SkillType::AnimalHandling) => RollType::AnimalHandlingCheck,
+            RollCategory::SkillCheck(SkillType::Arcana) => RollType::ArcanaCheck,
+            RollCategory::SkillCheck(SkillType::Athletics) => RollType::AthleticsCheck,
+            RollCategory::SkillCheck(SkillType::Deception) => RollType::DeceptionCheck,
+            RollCategory::SkillCheck(SkillType::History) => RollType::HistoryCheck,
+            RollCategory::SkillCheck(SkillType::Insight) => RollType::InsightCheck,
+            RollCategory::SkillCheck(SkillType::Intimidation) => RollType::IntimidationCheck,
+            RollCategory::SkillCheck(SkillType::Investigation) => RollType::InvestigationCheck,
+            RollCategory::SkillCheck(SkillType::Medicine) => RollType::MedicineCheck,
+            RollCategory::SkillCheck(SkillType::Nature) => RollType::NatureCheck,
+            RollCategory::SkillCheck(SkillType::Perception) => RollType::PerceptionCheck,
+            RollCategory::SkillCheck(SkillType::Performance) => RollType::PerformanceCheck,
+            RollCategory::SkillCheck(SkillType::Persuasion) => RollType::PersuasionCheck,
+            RollCategory::SkillCheck(SkillType::Religion) => RollType::ReligionCheck,
+            RollCategory::SkillCheck(SkillType::SleightOfHand) => RollType::SleightOfHandCheck,
+            RollCategory::SkillCheck(SkillType::Stealth) => RollType::StealthCheck,
+            RollCategory::SkillCheck(SkillType::Survival) => RollType::SurvivalCheck,
+            RollCategory::Save(AbilityType::Strength) => RollType::StrengthSave,
+            RollCategory::Save(AbilityType::Dexterity) => RollType::DexteritySave,
+            RollCategory::Save(AbilityType::Constitution) => RollType::ConstitutionSave,
+            RollCategory::Save(AbilityType::Intelligence) => RollType::IntelligenceSave,
+            RollCategory::Save(AbilityType::Wisdom) => RollType::WisdomSave,
+            RollCategory::Save(AbilityType::Charisma) => RollType::CharismaSave,
+            RollCategory::Hit => RollType::Hit,
+            RollCategory::Damage => RollType::Damage,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -118,6 +229,31 @@ pub enum SkillType {
     SleightOfHand,
     Stealth,
     Survival,
+}
+
+impl SkillType {
+    pub fn ability(&self) -> AbilityType {
+        match self {
+            SkillType::Acrobatics => AbilityType::Dexterity,
+            SkillType::AnimalHandling => AbilityType::Wisdom,
+            SkillType::Arcana => AbilityType::Intelligence,
+            SkillType::Athletics => AbilityType::Strength,
+            SkillType::Deception => AbilityType::Charisma,
+            SkillType::History => AbilityType::Intelligence,
+            SkillType::Insight => AbilityType::Wisdom,
+            SkillType::Intimidation => AbilityType::Charisma,
+            SkillType::Investigation => AbilityType::Intelligence,
+            SkillType::Medicine => AbilityType::Wisdom,
+            SkillType::Nature => AbilityType::Intelligence,
+            SkillType::Perception => AbilityType::Wisdom,
+            SkillType::Performance => AbilityType::Charisma,
+            SkillType::Persuasion => AbilityType::Charisma,
+            SkillType::Religion => AbilityType::Intelligence,
+            SkillType::SleightOfHand => AbilityType::Dexterity,
+            SkillType::Stealth => AbilityType::Dexterity,
+            SkillType::Survival => AbilityType::Wisdom,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

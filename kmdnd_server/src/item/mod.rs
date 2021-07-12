@@ -145,7 +145,7 @@ impl Armor {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum ArmorType {
     Light,

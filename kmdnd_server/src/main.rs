@@ -65,6 +65,7 @@ async fn main() -> Result<(), Error> {
             .service(character::endpoints::create_character_in_campaign)
             .service(character::endpoints::get_characters_in_campaign)
             .service(character::endpoints::get_character_in_campaign_by_id)
+            .service(character::endpoints::get_character_roll_stats)
             .service(encounter::endpoints::create_encounter_in_campaign)
             .service(encounter::endpoints::get_encounters_in_campaign)
             .service(encounter::endpoints::get_current_encounter_in_campaign)

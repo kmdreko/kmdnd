@@ -10,6 +10,7 @@ use crate::character::race::Race;
 use crate::character::Proficiencies;
 use crate::error::Error;
 use crate::item::{self, ItemBody};
+use crate::operation::{AbilityType, RollCategory, RollType};
 
 use super::{db, Character, CharacterId, CharacterOwner, CharacterStats, Position};
 
@@ -146,4 +147,81 @@ async fn get_character_in_campaign_by_id(
         })?;
 
     Ok(Json(CharacterBody::render(&db, character).await?))
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RollStatsBody {
+    modifier: RollModifier,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum RollModifier {
+    Advantage,
+    Normal,
+    Disadvantage,
+}
+
+#[get("/campaigns/{campaign_id}/characters/{character_id}/roll/{roll_type}")]
+#[tracing::instrument(skip(db))]
+async fn get_character_roll_stats(
+    db: Data<Database>,
+    params: Path<(CampaignId, CharacterId, RollType)>,
+) -> Result<Json<RollStatsBody>, Error> {
+    let (campaign_id, character_id, roll_type) = params.into_inner();
+    let campaign = campaign::db::assert_campaign_exists(&db, campaign_id).await?;
+    let character = db::fetch_character_by_campaign_and_id(&db, campaign.id, character_id)
+        .await?
+        .ok_or(Error::CharacterDoesNotExistInCampaign {
+            campaign_id: campaign.id,
+            character_id,
+        })?;
+
+    let mut stats = RollStatsBody {
+        modifier: RollModifier::Normal,
+    };
+    match roll_type.into() {
+        RollCategory::SkillCheck(skill) => {
+            if character.proficiencies.skills.contains(&skill) {
+                stats.modifier = RollModifier::Advantage;
+            }
+        }
+        RollCategory::Save(ability) => {
+            if character.proficiencies.saving_throws.contains(&ability) {
+                stats.modifier = RollModifier::Advantage;
+            }
+        }
+        _ => {}
+    }
+
+    let ability = match roll_type.into() {
+        RollCategory::SkillCheck(skill) => Some(skill.ability()),
+        RollCategory::AbilityCheck(ability) => Some(ability),
+        RollCategory::Save(ability) => Some(ability),
+        _ => None,
+    };
+
+    if matches!(
+        ability,
+        Some(AbilityType::Strength) | Some(AbilityType::Dexterity)
+    ) || matches!(roll_type, RollType::Hit)
+    {
+        let items: Vec<_> = stream::iter(&character.equipment)
+            .then(|equipment| item::db::fetch_item_by_id(&db, equipment.item_id))
+            .try_collect()
+            .await?;
+
+        for item in items {
+            if let Some(item) = item {
+                if let item::ItemType::Armor(armor) = item.item_type {
+                    if !character.proficiencies.armor.contains(&armor.armor_type) {
+                        // TODO: cancel out advantage
+                        stats.modifier = RollModifier::Disadvantage;
+                    }
+                }
+            }
+        }
+    }
+
+    Err(Error::PathDoesNotExist)
 }

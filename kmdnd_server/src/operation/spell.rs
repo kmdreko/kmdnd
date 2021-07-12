@@ -5,7 +5,7 @@ use crate::campaign::CampaignId;
 use crate::character::{self, Character, Position};
 use crate::encounter::Encounter;
 use crate::error::Error;
-use crate::operation::{AbilityOrSkillType, AbilityType, InteractionId, RollType, SpellTarget};
+use crate::operation::{InteractionId, RollType, SpellTarget};
 use crate::violations::Violation;
 
 use super::{Interaction, Operation};
@@ -140,16 +140,14 @@ impl Cast {
                         .map(|character| Interaction {
                             id: InteractionId::new(),
                             character_id: character.id,
-                            roll_type: RollType::Save(AbilityOrSkillType::Ability(
-                                AbilityType::Dexterity,
-                            )),
+                            roll_type: RollType::DexteritySave,
                             result: None,
                         })
                         .collect();
 
                     interactions
                 }
-                RollType::Save(AbilityOrSkillType::Ability(AbilityType::Dexterity)) => {
+                RollType::DexteritySave => {
                     let target_character = character::db::fetch_character_by_campaign_and_id(
                         &db,
                         campaign_id,
