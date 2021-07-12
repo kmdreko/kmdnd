@@ -10,7 +10,7 @@ use crate::character::race::Race;
 use crate::character::Proficiencies;
 use crate::error::Error;
 use crate::item::{self, ItemBody};
-use crate::operation::{AbilityType, RollCategory, RollType};
+use crate::operation::{AbilityType, RollType};
 
 use super::{db, Character, CharacterId, CharacterOwner, CharacterStats, Position};
 
@@ -180,13 +180,13 @@ async fn get_character_roll_stats(
     let mut stats = RollStatsBody {
         modifier: RollModifier::Normal,
     };
-    match roll_type.into() {
-        RollCategory::SkillCheck(skill) => {
+    match roll_type {
+        RollType::SkillCheck(skill) => {
             if character.proficiencies.skills.contains(&skill) {
                 stats.modifier = RollModifier::Advantage;
             }
         }
-        RollCategory::Save(ability) => {
+        RollType::Save(ability) => {
             if character.proficiencies.saving_throws.contains(&ability) {
                 stats.modifier = RollModifier::Advantage;
             }
@@ -194,10 +194,10 @@ async fn get_character_roll_stats(
         _ => {}
     }
 
-    let ability = match roll_type.into() {
-        RollCategory::SkillCheck(skill) => Some(skill.ability()),
-        RollCategory::AbilityCheck(ability) => Some(ability),
-        RollCategory::Save(ability) => Some(ability),
+    let ability = match roll_type {
+        RollType::SkillCheck(skill) => Some(skill.ability()),
+        RollType::AbilityCheck(ability) => Some(ability),
+        RollType::Save(ability) => Some(ability),
         _ => None,
     };
 

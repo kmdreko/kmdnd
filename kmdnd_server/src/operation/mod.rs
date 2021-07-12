@@ -69,46 +69,8 @@ impl OperationType {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
-pub enum RollType {
-    Initiative,
-    StrengthCheck,
-    DexterityCheck,
-    ConstitutionCheck,
-    IntelligenceCheck,
-    WisdomCheck,
-    CharismaCheck,
-    AcrobaticsCheck,
-    AnimalHandlingCheck,
-    ArcanaCheck,
-    AthleticsCheck,
-    DeceptionCheck,
-    HistoryCheck,
-    InsightCheck,
-    IntimidationCheck,
-    InvestigationCheck,
-    MedicineCheck,
-    NatureCheck,
-    PerceptionCheck,
-    PerformanceCheck,
-    PersuasionCheck,
-    ReligionCheck,
-    SleightOfHandCheck,
-    StealthCheck,
-    SurvivalCheck,
-    StrengthSave,
-    DexteritySave,
-    ConstitutionSave,
-    IntelligenceSave,
-    WisdomSave,
-    CharismaSave,
-    Hit,
-    Damage,
-}
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum RollCategory {
+pub enum RollType {
     Initiative,
     SkillCheck(SkillType),
     AbilityCheck(AbilityType),
@@ -117,82 +79,100 @@ pub enum RollCategory {
     Damage,
 }
 
-impl From<RollType> for RollCategory {
-    fn from(roll: RollType) -> Self {
-        match roll {
-            RollType::Initiative => RollCategory::Initiative,
-            RollType::StrengthCheck => RollCategory::AbilityCheck(AbilityType::Strength),
-            RollType::DexterityCheck => RollCategory::AbilityCheck(AbilityType::Dexterity),
-            RollType::ConstitutionCheck => RollCategory::AbilityCheck(AbilityType::Constitution),
-            RollType::IntelligenceCheck => RollCategory::AbilityCheck(AbilityType::Intelligence),
-            RollType::WisdomCheck => RollCategory::AbilityCheck(AbilityType::Wisdom),
-            RollType::CharismaCheck => RollCategory::AbilityCheck(AbilityType::Charisma),
-            RollType::AcrobaticsCheck => RollCategory::SkillCheck(SkillType::Acrobatics),
-            RollType::AnimalHandlingCheck => RollCategory::SkillCheck(SkillType::AnimalHandling),
-            RollType::ArcanaCheck => RollCategory::SkillCheck(SkillType::Arcana),
-            RollType::AthleticsCheck => RollCategory::SkillCheck(SkillType::Athletics),
-            RollType::DeceptionCheck => RollCategory::SkillCheck(SkillType::Deception),
-            RollType::HistoryCheck => RollCategory::SkillCheck(SkillType::History),
-            RollType::InsightCheck => RollCategory::SkillCheck(SkillType::Insight),
-            RollType::IntimidationCheck => RollCategory::SkillCheck(SkillType::Intimidation),
-            RollType::InvestigationCheck => RollCategory::SkillCheck(SkillType::Investigation),
-            RollType::MedicineCheck => RollCategory::SkillCheck(SkillType::Medicine),
-            RollType::NatureCheck => RollCategory::SkillCheck(SkillType::Nature),
-            RollType::PerceptionCheck => RollCategory::SkillCheck(SkillType::Perception),
-            RollType::PerformanceCheck => RollCategory::SkillCheck(SkillType::Performance),
-            RollType::PersuasionCheck => RollCategory::SkillCheck(SkillType::Persuasion),
-            RollType::ReligionCheck => RollCategory::SkillCheck(SkillType::Religion),
-            RollType::SleightOfHandCheck => RollCategory::SkillCheck(SkillType::SleightOfHand),
-            RollType::StealthCheck => RollCategory::SkillCheck(SkillType::Stealth),
-            RollType::SurvivalCheck => RollCategory::SkillCheck(SkillType::Survival),
-            RollType::StrengthSave => RollCategory::Save(AbilityType::Strength),
-            RollType::DexteritySave => RollCategory::Save(AbilityType::Dexterity),
-            RollType::ConstitutionSave => RollCategory::Save(AbilityType::Constitution),
-            RollType::IntelligenceSave => RollCategory::Save(AbilityType::Intelligence),
-            RollType::WisdomSave => RollCategory::Save(AbilityType::Wisdom),
-            RollType::CharismaSave => RollCategory::Save(AbilityType::Charisma),
-            RollType::Hit => RollCategory::Hit,
-            RollType::Damage => RollCategory::Damage,
+impl Serialize for RollType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use AbilityType::*;
+        use RollType::*;
+        use SkillType::*;
+
+        match self {
+            Initiative => "INITIATIVE".serialize(serializer),
+            SkillCheck(Acrobatics) => "ACROBATICS-CHECK".serialize(serializer),
+            SkillCheck(AnimalHandling) => "ANIMAL-HANDLING-CHECK".serialize(serializer),
+            SkillCheck(Arcana) => "ARCANA-CHECK".serialize(serializer),
+            SkillCheck(Athletics) => "ATHLETICS-CHECK".serialize(serializer),
+            SkillCheck(Deception) => "DECEPTION-CHECK".serialize(serializer),
+            SkillCheck(History) => "HISTORY-CHECK".serialize(serializer),
+            SkillCheck(Insight) => "INSIGHT-CHECK".serialize(serializer),
+            SkillCheck(Intimidation) => "INTIMIDATION-CHECK".serialize(serializer),
+            SkillCheck(Investigation) => "INVESTIGATION-CHECK".serialize(serializer),
+            SkillCheck(Medicine) => "MEDICINE-CHECK".serialize(serializer),
+            SkillCheck(Nature) => "NATURE-CHECK".serialize(serializer),
+            SkillCheck(Perception) => "PERCEPTION-CHECK".serialize(serializer),
+            SkillCheck(Performance) => "PERFORMANCE-CHECK".serialize(serializer),
+            SkillCheck(Persuasion) => "PERSUASION-CHECK".serialize(serializer),
+            SkillCheck(Religion) => "RELIGION-CHECK".serialize(serializer),
+            SkillCheck(SleightOfHand) => "SLEIGHT-OF-HAND-CHECK".serialize(serializer),
+            SkillCheck(Stealth) => "STEALTH-CHECK".serialize(serializer),
+            SkillCheck(Survival) => "SURVIVAL-CHECK".serialize(serializer),
+            AbilityCheck(Strength) => "STRENGTH-CHECK".serialize(serializer),
+            AbilityCheck(Dexterity) => "DEXTERITY-CHECK".serialize(serializer),
+            AbilityCheck(Constitution) => "CONSTITUTION-CHECK".serialize(serializer),
+            AbilityCheck(Intelligence) => "INTELLIGENCE-CHECK".serialize(serializer),
+            AbilityCheck(Wisdom) => "WISDOM-CHECK".serialize(serializer),
+            AbilityCheck(Charisma) => "CHARISMA-CHECK".serialize(serializer),
+            Save(Strength) => "STRENGTH-SAVE".serialize(serializer),
+            Save(Dexterity) => "DEXTERITY-SAVE".serialize(serializer),
+            Save(Constitution) => "CONSTITUTION-SAVE".serialize(serializer),
+            Save(Intelligence) => "INTELLIGENCE-SAVE".serialize(serializer),
+            Save(Wisdom) => "WISDOM-SAVE".serialize(serializer),
+            Save(Charisma) => "CHARISMA-SAVE".serialize(serializer),
+            Hit => "HIT".serialize(serializer),
+            Damage => "DAMAGE".serialize(serializer),
         }
     }
 }
 
-impl Into<RollType> for RollCategory {
-    fn into(self) -> RollType {
-        match self {
-            RollCategory::Initiative => RollType::Initiative,
-            RollCategory::AbilityCheck(AbilityType::Strength) => RollType::StrengthCheck,
-            RollCategory::AbilityCheck(AbilityType::Dexterity) => RollType::DexterityCheck,
-            RollCategory::AbilityCheck(AbilityType::Constitution) => RollType::ConstitutionCheck,
-            RollCategory::AbilityCheck(AbilityType::Intelligence) => RollType::IntelligenceCheck,
-            RollCategory::AbilityCheck(AbilityType::Wisdom) => RollType::WisdomCheck,
-            RollCategory::AbilityCheck(AbilityType::Charisma) => RollType::CharismaCheck,
-            RollCategory::SkillCheck(SkillType::Acrobatics) => RollType::AcrobaticsCheck,
-            RollCategory::SkillCheck(SkillType::AnimalHandling) => RollType::AnimalHandlingCheck,
-            RollCategory::SkillCheck(SkillType::Arcana) => RollType::ArcanaCheck,
-            RollCategory::SkillCheck(SkillType::Athletics) => RollType::AthleticsCheck,
-            RollCategory::SkillCheck(SkillType::Deception) => RollType::DeceptionCheck,
-            RollCategory::SkillCheck(SkillType::History) => RollType::HistoryCheck,
-            RollCategory::SkillCheck(SkillType::Insight) => RollType::InsightCheck,
-            RollCategory::SkillCheck(SkillType::Intimidation) => RollType::IntimidationCheck,
-            RollCategory::SkillCheck(SkillType::Investigation) => RollType::InvestigationCheck,
-            RollCategory::SkillCheck(SkillType::Medicine) => RollType::MedicineCheck,
-            RollCategory::SkillCheck(SkillType::Nature) => RollType::NatureCheck,
-            RollCategory::SkillCheck(SkillType::Perception) => RollType::PerceptionCheck,
-            RollCategory::SkillCheck(SkillType::Performance) => RollType::PerformanceCheck,
-            RollCategory::SkillCheck(SkillType::Persuasion) => RollType::PersuasionCheck,
-            RollCategory::SkillCheck(SkillType::Religion) => RollType::ReligionCheck,
-            RollCategory::SkillCheck(SkillType::SleightOfHand) => RollType::SleightOfHandCheck,
-            RollCategory::SkillCheck(SkillType::Stealth) => RollType::StealthCheck,
-            RollCategory::SkillCheck(SkillType::Survival) => RollType::SurvivalCheck,
-            RollCategory::Save(AbilityType::Strength) => RollType::StrengthSave,
-            RollCategory::Save(AbilityType::Dexterity) => RollType::DexteritySave,
-            RollCategory::Save(AbilityType::Constitution) => RollType::ConstitutionSave,
-            RollCategory::Save(AbilityType::Intelligence) => RollType::IntelligenceSave,
-            RollCategory::Save(AbilityType::Wisdom) => RollType::WisdomSave,
-            RollCategory::Save(AbilityType::Charisma) => RollType::CharismaSave,
-            RollCategory::Hit => RollType::Hit,
-            RollCategory::Damage => RollType::Damage,
+impl<'de> Deserialize<'de> for RollType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        use AbilityType::*;
+        use RollType::*;
+        use SkillType::*;
+
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            "INITIATIVE" => Ok(Initiative),
+            "ACROBATICS-CHECK" => Ok(SkillCheck(Acrobatics)),
+            "ANIMAL-HANDLING-CHECK" => Ok(SkillCheck(AnimalHandling)),
+            "ARCANA-CHECK" => Ok(SkillCheck(Arcana)),
+            "ATHLETICS-CHECK" => Ok(SkillCheck(Athletics)),
+            "DECEPTION-CHECK" => Ok(SkillCheck(Deception)),
+            "HISTORY-CHECK" => Ok(SkillCheck(History)),
+            "INSIGHT-CHECK" => Ok(SkillCheck(Insight)),
+            "INTIMIDATION-CHECK" => Ok(SkillCheck(Intimidation)),
+            "INVESTIGATION-CHECK" => Ok(SkillCheck(Investigation)),
+            "MEDICINE-CHECK" => Ok(SkillCheck(Medicine)),
+            "NATURE-CHECK" => Ok(SkillCheck(Nature)),
+            "PERCEPTION-CHECK" => Ok(SkillCheck(Perception)),
+            "PERFORMANCE-CHECK" => Ok(SkillCheck(Performance)),
+            "PERSUASION-CHECK" => Ok(SkillCheck(Persuasion)),
+            "RELIGION-CHECK" => Ok(SkillCheck(Religion)),
+            "SLEIGHT-OF-HAND-CHECK" => Ok(SkillCheck(SleightOfHand)),
+            "STEALTH-CHECK" => Ok(SkillCheck(Stealth)),
+            "SURVIVAL-CHECK" => Ok(SkillCheck(Survival)),
+            "STRENGTH-CHECK" => Ok(AbilityCheck(Strength)),
+            "DEXTERITY-CHECK" => Ok(AbilityCheck(Dexterity)),
+            "CONSTITUTION-CHECK" => Ok(AbilityCheck(Constitution)),
+            "INTELLIGENCE-CHECK" => Ok(AbilityCheck(Intelligence)),
+            "WISDOM-CHECK" => Ok(AbilityCheck(Wisdom)),
+            "CHARISMA-CHECK" => Ok(AbilityCheck(Charisma)),
+            "STRENGTH-SAVE" => Ok(Save(Strength)),
+            "DEXTERITY-SAVE" => Ok(Save(Dexterity)),
+            "CONSTITUTION-SAVE" => Ok(Save(Constitution)),
+            "INTELLIGENCE-SAVE" => Ok(Save(Intelligence)),
+            "WISDOM-SAVE" => Ok(Save(Wisdom)),
+            "CHARISMA-SAVE" => Ok(Save(Charisma)),
+            "HIT" => Ok(Hit),
+            "DAMAGE" => Ok(Damage),
+            _ => Err(D::Error::custom("did not match")),
         }
     }
 }
