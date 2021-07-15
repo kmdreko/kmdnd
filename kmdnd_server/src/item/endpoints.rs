@@ -33,10 +33,7 @@ impl ItemBody {
 async fn get_items(db: Data<Box<dyn Database>>) -> Result<Json<Vec<ItemBody>>, Error> {
     let items = db.items().fetch_items().await?;
 
-    let body = items
-        .into_iter()
-        .map(|item| ItemBody::render(item))
-        .collect();
+    let body = items.into_iter().map(ItemBody::render).collect();
 
     Ok(Json(body))
 }

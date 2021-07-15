@@ -103,10 +103,7 @@ async fn get_encounters_in_campaign(
         .encounters()
         .fetch_encounters_by_campaign(campaign.id)
         .await?;
-    let body = encounters
-        .into_iter()
-        .map(|encounter| EncounterBody::render(encounter))
-        .collect();
+    let body = encounters.into_iter().map(EncounterBody::render).collect();
 
     Ok(Json(body))
 }

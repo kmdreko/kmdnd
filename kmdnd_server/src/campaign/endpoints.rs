@@ -32,20 +32,22 @@ impl CampaignBody {
             .characters()
             .fetch_characters_by_campaign(campaign.id)
             .await?;
+        let characters = stream::iter(characters)
+            .then(|character| CharacterBody::render(db, character))
+            .try_collect()
+            .await?;
+
         Ok(CampaignBody {
             id: campaign.id,
             name: campaign.name,
             created_at: campaign.created_at,
             modified_at: campaign.modified_at,
-            characters: stream::iter(characters)
-                .then(|character| CharacterBody::render(db, character))
-                .try_collect()
-                .await?,
+            characters,
             current_encounter: db
                 .encounters()
                 .fetch_current_encounter_by_campaign(campaign.id)
                 .await?
-                .map(|encounter| EncounterBody::render(encounter)),
+                .map(EncounterBody::render),
         })
     }
 }

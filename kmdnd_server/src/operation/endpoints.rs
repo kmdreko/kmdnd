@@ -180,10 +180,7 @@ async fn get_operations_in_current_encounter_in_campaign(
         .fetch_operations_by_encounter(encounter.id)
         .await?;
 
-    let body = operations
-        .into_iter()
-        .map(|operation| OperationBody::render(operation))
-        .collect();
+    let body = operations.into_iter().map(OperationBody::render).collect();
 
     Ok(Json(body))
 }
@@ -318,13 +315,13 @@ async fn submit_interaction_result_to_operation(
         .enumerate()
         .find(|(_, inter)| inter.id == body.interaction_id)
         .ok_or(Error::InteractionDoesNotExist {
-            operation_id,
+            operation_id: operation.id,
             interaction_id: body.interaction_id,
         })?;
 
     if interaction.character_id != body.character_id {
         return Err(Error::WrongCharacterForInteraction {
-            operation_id: operation_id,
+            operation_id: operation.id,
             interaction_id: interaction.id,
             expected_character_id: interaction.character_id,
             request_character_id: body.character_id,
@@ -490,7 +487,7 @@ async fn begin_current_encounter_in_campaign(
         })
         .collect();
 
-    if uninitiated_character_ids.len() > 0 {
+    if !uninitiated_character_ids.is_empty() {
         return Err(Error::CharactersHaveNotRolledInitiative {
             campaign_id: campaign.id,
             encounter_id: encounter.id,
@@ -626,7 +623,7 @@ async fn move_in_current_encounter_in_campaign(
         modified_at: now,
         operation_type: OperationType::Move(Move {
             to_position: desired_position,
-            feet: feet,
+            feet,
         }),
         interactions: vec![],
         legality: if violations.is_empty() {
@@ -727,7 +724,7 @@ async fn take_action_in_current_encounter_in_campaign(
     let now = Utc::now();
     let operation = Operation {
         id: OperationId::new(),
-        campaign_id: campaign_id,
+        campaign_id: campaign.id,
         encounter_id: Some(encounter.id),
         encounter_state: Some(encounter.state),
         character_id: body.character_id,

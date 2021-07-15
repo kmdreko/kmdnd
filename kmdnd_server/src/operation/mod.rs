@@ -55,8 +55,8 @@ pub enum OperationType {
 
 impl OperationType {
     pub fn as_roll(&self) -> Option<(RollType, i32)> {
-        match self {
-            &OperationType::Roll { roll, result } => Some((roll, result)),
+        match *self {
+            OperationType::Roll { roll, result } => Some((roll, result)),
             _ => None,
         }
     }

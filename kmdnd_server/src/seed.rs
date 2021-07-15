@@ -164,7 +164,7 @@ pub async fn seed(db: &dyn Database) -> Result<(), Error> {
 
     let encounter = Encounter {
         id: EncounterId::new(),
-        campaign_id: campaign_id,
+        campaign_id: campaign.id,
         character_ids: vec![character1_id, character2_id],
         created_at: now,
         modified_at: now,

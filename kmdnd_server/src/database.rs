@@ -32,23 +32,29 @@ pub trait Database {
 
 #[derive(Debug, Clone)]
 pub struct MongoDatabase {
+    db: mongodb::Database,
     campaigns: Collection<Campaign>,
     characters: Collection<Character>,
     encounters: Collection<Encounter>,
     items: Collection<Item>,
     operations: Collection<Operation>,
-    db: mongodb::Database,
 }
 
 impl MongoDatabase {
     pub async fn initialize(db: mongodb::Database) -> Result<MongoDatabase, Error> {
+        let campaigns = initialize_campaigns(&db).await?;
+        let characters = initialize_characters(&db).await?;
+        let encounters = initialize_encounters(&db).await?;
+        let items = initialize_items(&db).await?;
+        let operations = initialize_operations(&db).await?;
+
         Ok(MongoDatabase {
-            campaigns: initialize_campaigns(&db).await?,
-            characters: initialize_characters(&db).await?,
-            encounters: initialize_encounters(&db).await?,
-            items: initialize_items(&db).await?,
-            operations: initialize_operations(&db).await?,
-            db: db,
+            db,
+            campaigns,
+            characters,
+            encounters,
+            items,
+            operations,
         })
     }
 }

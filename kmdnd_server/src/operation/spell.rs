@@ -59,7 +59,7 @@ impl Cast {
                 if cast_distance > spell_range {
                     violations.push(Violation::CastNotInRange {
                         request_character_id: source_character.id,
-                        target_position: cast_position.clone(),
+                        target_position: *cast_position,
                         spell_range,
                         current_range: cast_distance,
                     });
@@ -85,6 +85,7 @@ impl Cast {
         Ok((cast, interactions, violations))
     }
 
+    #[allow(clippy::let_and_return)]
     pub async fn handle_interaction_result(
         &self,
         db: &dyn Database,
@@ -159,12 +160,16 @@ impl Cast {
                         .interactions
                         .iter()
                         .find(|i| i.roll_type == RollType::Damage)
-                        .ok_or(Error::ExistentialState(
-                            "Expected Fireball to have damage roll interaction".to_string(),
-                        ))?;
-                    let max_damage = damage_interaction.result.ok_or(Error::ExistentialState(
-                        "Expected Fireball damage roll to have result".to_string(),
-                    ))?;
+                        .ok_or_else(|| {
+                            Error::ExistentialState(
+                                "Expected Fireball to have damage roll interaction".to_string(),
+                            )
+                        })?;
+                    let max_damage = damage_interaction.result.ok_or_else(|| {
+                        Error::ExistentialState(
+                            "Expected Fireball damage roll to have result".to_string(),
+                        )
+                    })?;
 
                     let difficulty_class = 8; // TODO: based on caster's class and stats
                     let damage = if result >= difficulty_class {

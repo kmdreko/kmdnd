@@ -26,6 +26,12 @@ impl<T: TypedIdMarker> Clone for TypedId<T> {
     }
 }
 
+impl<T: TypedIdMarker> Default for TypedId<T> {
+    fn default() -> TypedId<T> {
+        TypedId::new()
+    }
+}
+
 impl<T: TypedIdMarker> Eq for TypedId<T> {}
 
 impl<T: TypedIdMarker> PartialEq for TypedId<T> {
@@ -77,7 +83,7 @@ impl<'de, T: TypedIdMarker> Deserialize<'de> for TypedId<T> {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        TypedId::from_str(&s).map_err(|e| D::Error::custom(e))
+        TypedId::from_str(&s).map_err(D::Error::custom)
     }
 }
 

@@ -1,7 +1,7 @@
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
 use chrono::{DateTime, Utc};
-use futures::{stream, StreamExt, TryStreamExt};
+use futures::{future, stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
@@ -56,7 +56,7 @@ impl CharacterBody {
             created_at: character.created_at,
             modified_at: character.modified_at,
             stats: character.stats,
-            equipment: equipment,
+            equipment,
             position: character.position,
             current_hit_points: character.current_hit_points,
             maximum_hit_points: character.maximum_hit_points,
@@ -215,16 +215,15 @@ async fn get_character_roll_stats(
     {
         let items: Vec<_> = stream::iter(&character.equipment)
             .then(|equipment| db.items().fetch_item_by_id(equipment.item_id))
+            .try_filter_map(|item| future::ready(Ok(item)))
             .try_collect()
             .await?;
 
         for item in items {
-            if let Some(item) = item {
-                if let item::ItemType::Armor(armor) = item.item_type {
-                    if !character.proficiencies.armor.contains(&armor.armor_type) {
-                        // TODO: cancel out advantage
-                        stats.modifier = RollModifier::Disadvantage;
-                    }
+            if let item::ItemType::Armor(armor) = item.item_type {
+                if !character.proficiencies.armor.contains(&armor.armor_type) {
+                    // TODO: cancel out advantage
+                    stats.modifier = RollModifier::Disadvantage;
                 }
             }
         }
