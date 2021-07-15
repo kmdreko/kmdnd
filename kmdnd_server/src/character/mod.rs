@@ -2,10 +2,10 @@ use std::future;
 
 use chrono::{DateTime, Utc};
 use futures::{stream, StreamExt, TryStreamExt};
-use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
+use crate::database::MongoDatabase;
 use crate::error::Error;
 use crate::item::{self, ArmorType, ItemId};
 use crate::operation::{AbilityType, SkillType};
@@ -42,10 +42,10 @@ pub struct Character {
 }
 
 impl Character {
-    pub async fn recalculate_stats(&mut self, db: &Database) -> Result<(), Error> {
+    pub async fn recalculate_stats(&mut self, db: &MongoDatabase) -> Result<(), Error> {
         let items: Vec<_> = stream::iter(&self.equipment)
             .filter(|entry| future::ready(entry.equiped))
-            .then(|entry| item::db::fetch_item_by_id(db, entry.item_id))
+            .then(|entry| item::db::fetch_item_by_id(db.items(), entry.item_id))
             .try_collect()
             .await?;
 

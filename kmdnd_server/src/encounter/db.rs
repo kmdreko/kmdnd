@@ -5,6 +5,7 @@ use mongodb::{bson, Database};
 
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
+use crate::database::EncounterStore;
 use crate::error::Error;
 
 use super::{Encounter, EncounterState};
@@ -27,16 +28,15 @@ pub async fn initialize(db: &Database) -> Result<(), Error> {
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn insert_encounter(db: &Database, encounter: &Encounter) -> Result<(), Error> {
-    let doc = bson::to_document(encounter)?;
-    db.collection(ENCOUNTERS).insert_one(doc, None).await?;
+pub async fn insert_encounter(db: &EncounterStore, encounter: &Encounter) -> Result<(), Error> {
+    db.insert_one(encounter, None).await?;
 
     Ok(())
 }
 
 #[tracing::instrument(skip(db))]
 pub async fn fetch_encounters_by_campaign(
-    db: &Database,
+    db: &EncounterStore,
     campaign_id: CampaignId,
 ) -> Result<Vec<Encounter>, Error> {
     let options = FindOptions::builder()
@@ -44,7 +44,6 @@ pub async fn fetch_encounters_by_campaign(
         .build();
 
     let encounters: Vec<Encounter> = db
-        .collection(ENCOUNTERS)
         .find(bson::doc! { "campaign_id": campaign_id }, options)
         .await?
         .try_collect()
@@ -55,7 +54,7 @@ pub async fn fetch_encounters_by_campaign(
 
 #[tracing::instrument(skip(db))]
 pub async fn assert_current_encounter_exists(
-    db: &Database,
+    db: &EncounterStore,
     campaign_id: CampaignId,
 ) -> Result<Encounter, Error> {
     fetch_current_encounter_by_campaign(db, campaign_id)
@@ -65,7 +64,7 @@ pub async fn assert_current_encounter_exists(
 
 #[tracing::instrument(skip(db))]
 pub async fn fetch_current_encounter_by_campaign(
-    db: &Database,
+    db: &EncounterStore,
     campaign_id: CampaignId,
 ) -> Result<Option<Encounter>, Error> {
     let options = FindOneOptions::builder()
@@ -73,7 +72,6 @@ pub async fn fetch_current_encounter_by_campaign(
         .build();
 
     let encounter: Option<Encounter> = db
-        .collection(ENCOUNTERS)
         .find_one(bson::doc! { "campaign_id": campaign_id }, options)
         .await?
         .filter(|e: &Encounter| e.state != EncounterState::Finished);
@@ -83,7 +81,7 @@ pub async fn fetch_current_encounter_by_campaign(
 
 #[tracing::instrument(skip(db))]
 pub async fn update_encounter_state(
-    db: &Database,
+    db: &EncounterStore,
     mut encounter: Encounter,
     state: EncounterState,
 ) -> Result<Encounter, Error> {
@@ -93,7 +91,6 @@ pub async fn update_encounter_state(
     let new_modified_at = bson::DateTime::from_chrono(now);
 
     let result = db
-        .collection::<Encounter>(ENCOUNTERS)
         .update_one(
             bson::doc! { "_id": encounter.id, "modified_at": old_modified_at },
             bson::doc! { "$set": { "state": new_state, "modified_at": new_modified_at } },
@@ -113,7 +110,7 @@ pub async fn update_encounter_state(
 
 #[tracing::instrument(skip(db))]
 pub async fn update_encounter_state_and_characters(
-    db: &Database,
+    db: &EncounterStore,
     mut encounter: Encounter,
     state: EncounterState,
     character_ids: Vec<CharacterId>,
@@ -125,7 +122,6 @@ pub async fn update_encounter_state_and_characters(
     let new_character_ids = bson::to_bson(&character_ids)?;
 
     let result = db
-        .collection::<Encounter>(ENCOUNTERS)
         .update_one(
             bson::doc! { "_id": encounter.id, "modified_at": old_modified_at },
             bson::doc! { "$set": {

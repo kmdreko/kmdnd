@@ -1,8 +1,8 @@
-use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::character::{self, Character, CharacterId, Position};
+use crate::database::MongoDatabase;
 use crate::encounter::Encounter;
 use crate::error::Error;
 use crate::item::{DamageType, Weapon};
@@ -17,7 +17,7 @@ pub struct Attack {
 
 impl Attack {
     pub async fn submit(
-        db: &Database,
+        db: &MongoDatabase,
         campaign_id: CampaignId,
         encounter: &Encounter,
         source_character: Character,
@@ -25,7 +25,7 @@ impl Attack {
         method: AttackMethod,
     ) -> Result<(Attack, Vec<Interaction>, Vec<Violation>), Error> {
         let target_character = character::db::fetch_character_by_campaign_and_id(
-            &db,
+            db.characters(),
             campaign_id,
             target_character_id,
         )
@@ -88,7 +88,7 @@ impl Attack {
 
     pub async fn handle_interaction_result(
         &self,
-        db: &Database,
+        db: &MongoDatabase,
         campaign_id: CampaignId,
         interaction: &Interaction,
         result: i32,
@@ -97,7 +97,7 @@ impl Attack {
             RollType::Hit => {
                 let target_character_id = self.targets[0]; // TODO:
                 let target_character = character::db::fetch_character_by_campaign_and_id(
-                    &db,
+                    db.characters(),
                     campaign_id,
                     target_character_id,
                 )
@@ -121,7 +121,7 @@ impl Attack {
             RollType::Damage => {
                 let target_character_id = self.targets[0]; // TODO:
                 let target_character = character::db::fetch_character_by_campaign_and_id(
-                    &db,
+                    db.characters(),
                     campaign_id,
                     target_character_id,
                 )
@@ -132,8 +132,12 @@ impl Attack {
                 })?;
 
                 let new_hit_points = i32::max(target_character.current_hit_points - result, 0);
-                character::db::update_character_hit_points(db, target_character, new_hit_points)
-                    .await?;
+                character::db::update_character_hit_points(
+                    db.characters(),
+                    target_character,
+                    new_hit_points,
+                )
+                .await?;
 
                 vec![]
             }

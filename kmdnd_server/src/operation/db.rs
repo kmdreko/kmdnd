@@ -5,6 +5,7 @@ use mongodb::{bson, Database};
 
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
+use crate::database::OperationStore;
 use crate::encounter::{EncounterId, Round};
 use crate::error::Error;
 
@@ -29,20 +30,18 @@ pub async fn initialize(db: &Database) -> Result<(), Error> {
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn insert_operation(db: &Database, operation: &Operation) -> Result<(), Error> {
-    let doc = bson::to_document(operation)?;
-    db.collection(OPERATIONS).insert_one(doc, None).await?;
+pub async fn insert_operation(db: &OperationStore, operation: &Operation) -> Result<(), Error> {
+    db.insert_one(operation, None).await?;
 
     Ok(())
 }
 
 #[tracing::instrument(skip(db))]
 pub async fn fetch_operation_by_id(
-    db: &Database,
+    db: &OperationStore,
     operation_id: OperationId,
 ) -> Result<Option<Operation>, Error> {
     let operation = db
-        .collection(OPERATIONS)
         .find_one(bson::doc! { "_id": operation_id }, None)
         .await?;
 
@@ -51,7 +50,7 @@ pub async fn fetch_operation_by_id(
 
 #[tracing::instrument(skip(db))]
 pub async fn fetch_operations_by_campaign(
-    db: &Database,
+    db: &OperationStore,
     campaign_id: CampaignId,
 ) -> Result<Vec<Operation>, Error> {
     let options = FindOptions::builder()
@@ -59,7 +58,6 @@ pub async fn fetch_operations_by_campaign(
         .build();
 
     let operations: Vec<Operation> = db
-        .collection(OPERATIONS)
         .find(bson::doc! { "campaign_id": campaign_id }, options)
         .await?
         .try_collect()
@@ -70,7 +68,7 @@ pub async fn fetch_operations_by_campaign(
 
 #[tracing::instrument(skip(db))]
 pub async fn fetch_operations_by_encounter(
-    db: &Database,
+    db: &OperationStore,
     encounter_id: EncounterId,
 ) -> Result<Vec<Operation>, Error> {
     let options = FindOptions::builder()
@@ -78,7 +76,6 @@ pub async fn fetch_operations_by_encounter(
         .build();
 
     let operations: Vec<Operation> = db
-        .collection(OPERATIONS)
         .find(bson::doc! { "encounter_id": encounter_id }, options)
         .await?
         .try_collect()
@@ -89,7 +86,7 @@ pub async fn fetch_operations_by_encounter(
 
 #[tracing::instrument(skip(db))]
 pub async fn fetch_operations_by_turn(
-    db: &Database,
+    db: &OperationStore,
     encounter_id: EncounterId,
     round: Round,
     character_id: CharacterId,
@@ -99,7 +96,6 @@ pub async fn fetch_operations_by_turn(
         .build();
 
     let operations: Vec<Operation> = db
-        .collection(OPERATIONS)
         .find(
             bson::doc! {
                 "encounter_id": encounter_id,
@@ -118,7 +114,7 @@ pub async fn fetch_operations_by_turn(
 
 #[tracing::instrument(skip(db))]
 pub async fn update_operation_interaction_result(
-    db: &Database,
+    db: &OperationStore,
     mut operation: Operation,
     interaction_index: usize,
     interaction_result: i32,
@@ -129,7 +125,6 @@ pub async fn update_operation_interaction_result(
     let result_path = format!("interactions.{}.result", interaction_index);
 
     let result = db
-        .collection::<Operation>(OPERATIONS)
         .update_one(
             bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
             bson::doc! { "$set": { result_path: interaction_result, "modified_at": new_modified_at } },
@@ -149,7 +144,7 @@ pub async fn update_operation_interaction_result(
 
 #[tracing::instrument(skip(db))]
 pub async fn update_operation_push_interactions(
-    db: &Database,
+    db: &OperationStore,
     mut operation: Operation,
     interactions: Vec<Interaction>,
 ) -> Result<Operation, Error> {
@@ -159,7 +154,6 @@ pub async fn update_operation_push_interactions(
     let new_interactions = bson::to_bson(&interactions)?;
 
     let result = db
-        .collection::<Operation>(OPERATIONS)
         .update_one(
             bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
             bson::doc! {
@@ -182,7 +176,7 @@ pub async fn update_operation_push_interactions(
 
 #[tracing::instrument(skip(db))]
 pub async fn update_operation_legality(
-    db: &Database,
+    db: &OperationStore,
     mut operation: Operation,
     legality: Legality,
 ) -> Result<Operation, Error> {
@@ -192,7 +186,6 @@ pub async fn update_operation_legality(
     let new_legality = bson::to_bson(&legality)?;
 
     let result = db
-        .collection::<Operation>(OPERATIONS)
         .update_one(
             bson::doc! { "_id": operation.id, "modified_at": old_modified_at },
             bson::doc! { "$set": { "legality": new_legality, "modified_at": new_modified_at } },
@@ -211,9 +204,8 @@ pub async fn update_operation_legality(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn delete_operation(db: &Database, operation_id: OperationId) -> Result<(), Error> {
-    db.collection::<Operation>(OPERATIONS)
-        .delete_one(bson::doc! { "_id": operation_id }, None)
+pub async fn delete_operation(db: &OperationStore, operation_id: OperationId) -> Result<(), Error> {
+    db.delete_one(bson::doc! { "_id": operation_id }, None)
         .await?;
 
     Ok(())

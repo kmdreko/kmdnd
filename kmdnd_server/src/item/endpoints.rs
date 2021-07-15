@@ -1,8 +1,8 @@
 use actix_web::get;
 use actix_web::web::{Data, Json, Path};
-use mongodb::Database;
 use serde::Serialize;
 
+use crate::database::MongoDatabase;
 use crate::error::Error;
 
 use super::{db, Item, ItemId, ItemType};
@@ -30,8 +30,8 @@ impl ItemBody {
 
 #[get("/items")]
 #[tracing::instrument(skip(db))]
-async fn get_items(db: Data<Database>) -> Result<Json<Vec<ItemBody>>, Error> {
-    let items = db::fetch_items(&db).await?;
+async fn get_items(db: Data<MongoDatabase>) -> Result<Json<Vec<ItemBody>>, Error> {
+    let items = db::fetch_items(db.items()).await?;
 
     let body = items
         .into_iter()
@@ -43,10 +43,13 @@ async fn get_items(db: Data<Database>) -> Result<Json<Vec<ItemBody>>, Error> {
 
 #[get("/items/{item_id}")]
 #[tracing::instrument(skip(db))]
-async fn get_item_by_id(db: Data<Database>, params: Path<ItemId>) -> Result<Json<ItemBody>, Error> {
+async fn get_item_by_id(
+    db: Data<MongoDatabase>,
+    params: Path<ItemId>,
+) -> Result<Json<ItemBody>, Error> {
     let item_id = params.into_inner();
 
-    let item = db::fetch_item_by_id(&db, item_id)
+    let item = db::fetch_item_by_id(db.items(), item_id)
         .await?
         .ok_or(Error::ItemDoesNotExist { item_id })?;
 

@@ -1,8 +1,8 @@
-use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::character::{self, Character, Position};
+use crate::database::MongoDatabase;
 use crate::encounter::Encounter;
 use crate::error::Error;
 use crate::operation::{AbilityType, InteractionId, RollType, SpellTarget};
@@ -18,7 +18,7 @@ pub struct Cast {
 
 impl Cast {
     pub async fn submit(
-        _db: &Database,
+        _db: &MongoDatabase,
         _campaign_id: CampaignId,
         _encounter: &Encounter,
         source_character: Character,
@@ -87,7 +87,7 @@ impl Cast {
 
     pub async fn handle_interaction_result(
         &self,
-        db: &Database,
+        db: &MongoDatabase,
         campaign_id: CampaignId,
         encounter: &Encounter,
         operation: &Operation,
@@ -110,7 +110,7 @@ impl Cast {
                     let mut characters_in_encounter = vec![];
                     for &character_id in &encounter.character_ids {
                         let character = character::db::fetch_character_by_campaign_and_id(
-                            &db,
+                            db.characters(),
                             campaign_id,
                             character_id,
                         )
@@ -149,7 +149,7 @@ impl Cast {
                 }
                 RollType::Save(AbilityType::Dexterity) => {
                     let target_character = character::db::fetch_character_by_campaign_and_id(
-                        &db,
+                        db.characters(),
                         campaign_id,
                         interaction.character_id,
                     )
@@ -179,7 +179,7 @@ impl Cast {
 
                     let new_hit_points = i32::max(target_character.current_hit_points - damage, 0);
                     character::db::update_character_hit_points(
-                        db,
+                        db.characters(),
                         target_character,
                         new_hit_points,
                     )

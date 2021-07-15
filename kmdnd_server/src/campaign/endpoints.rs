@@ -2,10 +2,10 @@ use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
 use chrono::{DateTime, Utc};
 use futures::{stream, StreamExt, TryStreamExt};
-use mongodb::Database;
 use serde::{Deserialize, Serialize};
 
 use crate::character::{self, CharacterBody};
+use crate::database::MongoDatabase;
 use crate::encounter::{self, EncounterBody};
 use crate::error::Error;
 
@@ -27,8 +27,9 @@ struct CampaignBody {
 }
 
 impl CampaignBody {
-    pub async fn render(db: &Database, campaign: Campaign) -> Result<CampaignBody, Error> {
-        let characters = character::db::fetch_characters_by_campaign(&db, campaign.id).await?;
+    pub async fn render(db: &MongoDatabase, campaign: Campaign) -> Result<CampaignBody, Error> {
+        let characters =
+            character::db::fetch_characters_by_campaign(db.characters(), campaign.id).await?;
         Ok(CampaignBody {
             id: campaign.id,
             name: campaign.name,
@@ -38,9 +39,12 @@ impl CampaignBody {
                 .then(|character| CharacterBody::render(db, character))
                 .try_collect()
                 .await?,
-            current_encounter: encounter::db::fetch_current_encounter_by_campaign(&db, campaign.id)
-                .await?
-                .map(|encounter| EncounterBody::render(encounter)),
+            current_encounter: encounter::db::fetch_current_encounter_by_campaign(
+                db.encounters(),
+                campaign.id,
+            )
+            .await?
+            .map(|encounter| EncounterBody::render(encounter)),
         })
     }
 }
@@ -48,7 +52,7 @@ impl CampaignBody {
 #[post("/campaigns")]
 #[tracing::instrument(skip(db))]
 async fn create_campaign(
-    db: Data<Database>,
+    db: Data<MongoDatabase>,
     body: Json<CreateCampaignBody>,
 ) -> Result<Json<CampaignBody>, Error> {
     let body = body.into_inner();
@@ -61,7 +65,7 @@ async fn create_campaign(
         modified_at: now,
     };
 
-    db::insert_campaign(&db, &campaign).await?;
+    db::insert_campaign(db.campaigns(), &campaign).await?;
 
     let body = CampaignBody {
         id: campaign.id,
@@ -77,8 +81,8 @@ async fn create_campaign(
 
 #[get("/campaigns")]
 #[tracing::instrument(skip(db))]
-async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Error> {
-    let campaigns = db::fetch_campaigns(&db).await?;
+async fn get_campaigns(db: Data<MongoDatabase>) -> Result<Json<Vec<CampaignBody>>, Error> {
+    let campaigns = db::fetch_campaigns(db.campaigns()).await?;
 
     let body = stream::iter(campaigns)
         .then(|campaign| CampaignBody::render(&db, campaign))
@@ -91,12 +95,12 @@ async fn get_campaigns(db: Data<Database>) -> Result<Json<Vec<CampaignBody>>, Er
 #[get("/campaigns/{campaign_id}")]
 #[tracing::instrument(skip(db))]
 async fn get_campaign_by_id(
-    db: Data<Database>,
+    db: Data<MongoDatabase>,
     params: Path<CampaignId>,
 ) -> Result<Json<CampaignBody>, Error> {
     let campaign_id = params.into_inner();
 
-    let campaign = db::fetch_campaign_by_id(&db, campaign_id)
+    let campaign = db::fetch_campaign_by_id(db.campaigns(), campaign_id)
         .await?
         .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 

@@ -1,5 +1,4 @@
 use chrono::Utc;
-use mongodb::Database;
 
 use crate::campaign::{self, Campaign};
 use crate::character::race::Race;
@@ -7,6 +6,7 @@ use crate::character::{
     self, Character, CharacterOwner, CharacterStats, EquipmentEntry, Position, Proficiencies,
     ToolType,
 };
+use crate::database::MongoDatabase;
 use crate::encounter::{self, Encounter, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{
@@ -14,8 +14,8 @@ use crate::item::{
 };
 use crate::operation::{AbilityType, SkillType};
 
-pub async fn seed(db: &Database) -> Result<(), Error> {
-    db.drop(None).await?;
+pub async fn seed(db: &MongoDatabase) -> Result<(), Error> {
+    db.drop().await?;
 
     let campaign_id = "CPN-16E77539-8873-4C8A-BCA3-2036010474AD".parse().unwrap();
     let item1_id = "ITM-5EA81D0A-9788-4B8A-82D9-1A0D636B53CE".parse().unwrap();
@@ -87,7 +87,7 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
     ];
 
     for item in &items {
-        item::db::insert_item(db, item).await?;
+        item::db::insert_item(db.items(), item).await?;
     }
 
     let mut character1 = Character {
@@ -172,10 +172,10 @@ pub async fn seed(db: &Database) -> Result<(), Error> {
         state: EncounterState::Initiative,
     };
 
-    campaign::db::insert_campaign(db, &campaign).await?;
-    character::db::insert_character(db, &character1).await?;
-    character::db::insert_character(db, &character2).await?;
-    encounter::db::insert_encounter(db, &encounter).await?;
+    campaign::db::insert_campaign(db.campaigns(), &campaign).await?;
+    character::db::insert_character(db.characters(), &character1).await?;
+    character::db::insert_character(db.characters(), &character2).await?;
+    encounter::db::insert_encounter(db.encounters(), &encounter).await?;
 
     Ok(())
 }

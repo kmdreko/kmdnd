@@ -7,6 +7,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 
 mod campaign;
 mod character;
+mod database;
 mod encounter;
 mod error;
 mod item;
@@ -18,6 +19,8 @@ mod utils;
 mod violations;
 
 use error::Error;
+
+use crate::database::MongoDatabase;
 
 #[actix_web::main]
 async fn main() -> Result<(), Error> {
@@ -36,6 +39,8 @@ async fn main() -> Result<(), Error> {
     encounter::db::initialize(&db).await?;
     operation::db::initialize(&db).await?;
     item::db::initialize(&db).await?;
+
+    let db = MongoDatabase::new(db);
 
     seed::seed(&db).await?;
 
