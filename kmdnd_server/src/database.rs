@@ -141,3 +141,48 @@ pub async fn initialize_operations(db: &mongodb::Database) -> Result<MongoOperat
 
     Ok(db.collection(OPERATIONS))
 }
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use crate::campaign::db::MockCampaignStore;
+
+    pub struct MockDatabase {
+        pub campaigns: MockCampaignStore,
+    }
+
+    impl MockDatabase {
+        pub fn new() -> MockDatabase {
+            MockDatabase {
+                campaigns: MockCampaignStore::new(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Database for MockDatabase {
+        fn campaigns(&self) -> &dyn CampaignStore {
+            &self.campaigns
+        }
+
+        fn characters(&self) -> &dyn CharacterStore {
+            unimplemented!("MockDatabase::characters")
+        }
+
+        fn encounters(&self) -> &dyn EncounterStore {
+            unimplemented!("MockDatabase::encounters")
+        }
+
+        fn items(&self) -> &dyn ItemStore {
+            unimplemented!("MockDatabase::items")
+        }
+
+        fn operations(&self) -> &dyn OperationStore {
+            unimplemented!("MockDatabase::operations")
+        }
+
+        async fn drop(&self) -> Result<(), Error> {
+            unimplemented!("MockDatabase::drop")
+        }
+    }
+}

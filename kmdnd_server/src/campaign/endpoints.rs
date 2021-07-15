@@ -109,3 +109,27 @@ async fn get_campaign_by_id(
 
     Ok(Json(CampaignBody::render(&***db, campaign).await?))
 }
+
+#[cfg(test)]
+mod tests {
+    // use super::*;
+    // use crate::database::test::MockDatabase;
+
+    // #[tokio::test]
+    // async fn illegal_operation_can_be_approved() {
+    //     let mut db = Box::new(MockDatabase::new());
+    //     db.campaigns.on_insert_campaign = Box::new(|campaign| {
+    //         assert!(campaign.name == "Blue Man Group".to_string());
+    //         Ok(())
+    //     });
+
+    //     create_campaign(
+    //         Data::new(db),
+    //         Json(CreateCampaignBody {
+    //             name: "Blue Man Group".into(),
+    //         }),
+    //     )
+    //     .await
+    //     .unwrap();
+    // }
+}
