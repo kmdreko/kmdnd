@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use mongodb::Collection;
+use mongodb::{bson, Collection};
 
 use crate::campaign::db::CampaignStore;
 use crate::campaign::Campaign;
@@ -41,15 +41,15 @@ pub struct MongoDatabase {
 }
 
 impl MongoDatabase {
-    pub fn new(db: mongodb::Database) -> MongoDatabase {
-        MongoDatabase {
-            campaigns: db.collection("campaigns"),
-            characters: db.collection("characters"),
-            encounters: db.collection("encounters"),
-            items: db.collection("items"),
-            operations: db.collection("operations"),
+    pub async fn initialize(db: mongodb::Database) -> Result<MongoDatabase, Error> {
+        Ok(MongoDatabase {
+            campaigns: initialize_campaigns(&db).await?,
+            characters: initialize_characters(&db).await?,
+            encounters: initialize_encounters(&db).await?,
+            items: initialize_items(&db).await?,
+            operations: initialize_operations(&db).await?,
             db: db,
-        }
+        })
     }
 }
 
@@ -79,4 +79,65 @@ impl Database for MongoDatabase {
         self.db.drop(None).await?;
         Ok(())
     }
+}
+
+const CAMPAIGNS: &str = "campaigns";
+const CHARACTERS: &str = "characters";
+const ENCOUNTERS: &str = "encounters";
+const ITEMS: &str = "items";
+const OPERATIONS: &str = "operations";
+
+pub async fn initialize_campaigns(db: &mongodb::Database) -> Result<MongoCampaignStore, Error> {
+    Ok(db.collection(CAMPAIGNS))
+}
+
+pub async fn initialize_characters(db: &mongodb::Database) -> Result<MongoCharacterStore, Error> {
+    db.run_command(
+        bson::doc! {
+            "createIndexes": CHARACTERS,
+            "indexes": [
+                { "key": { "owner.campaign_id": 1 }, "name": "by_campaign_id" },
+                { "key": { "owner.user_id": 1 }, "name": "by_user_id" },
+            ]
+        },
+        None,
+    )
+    .await?;
+
+    Ok(db.collection(CHARACTERS))
+}
+
+pub async fn initialize_encounters(db: &mongodb::Database) -> Result<MongoEncounterStore, Error> {
+    db.run_command(
+        bson::doc! {
+            "createIndexes": ENCOUNTERS,
+            "indexes": [
+                { "key": { "campaign_id": 1, "created_at": 1 }, "name": "by_campaign_id" },
+            ]
+        },
+        None,
+    )
+    .await?;
+
+    Ok(db.collection(ENCOUNTERS))
+}
+
+pub async fn initialize_items(db: &mongodb::Database) -> Result<MongoItemStore, Error> {
+    Ok(db.collection(ITEMS))
+}
+
+pub async fn initialize_operations(db: &mongodb::Database) -> Result<MongoOperationStore, Error> {
+    db.run_command(
+        bson::doc! {
+            "createIndexes": OPERATIONS,
+            "indexes": [
+                { "key": { "campaign_id": 1, "created_at": 1 }, "name": "by_campaign_id" },
+                { "key": { "encounter_id": 1, "created_at": 1 }, "name": "by_encounter_id" },
+            ]
+        },
+        None,
+    )
+    .await?;
+
+    Ok(db.collection(OPERATIONS))
 }

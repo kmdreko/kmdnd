@@ -1,31 +1,13 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use futures::TryStreamExt;
-use mongodb::{bson, Database};
+use mongodb::bson;
 
 use crate::campaign::CampaignId;
 use crate::database::MongoCharacterStore;
 use crate::error::Error;
 
 use super::{Character, CharacterId, Position};
-
-const CHARACTERS: &str = "characters";
-
-pub async fn initialize(db: &Database) -> Result<(), Error> {
-    db.run_command(
-        bson::doc! {
-            "createIndexes": CHARACTERS,
-            "indexes": [
-                { "key": { "owner.campaign_id": 1 }, "name": "by_campaign_id" },
-                { "key": { "owner.user_id": 1 }, "name": "by_user_id" },
-            ]
-        },
-        None,
-    )
-    .await?;
-
-    Ok(())
-}
 
 #[async_trait]
 pub trait CharacterStore {

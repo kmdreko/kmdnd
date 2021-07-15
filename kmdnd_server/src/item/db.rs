@@ -1,13 +1,11 @@
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use mongodb::{bson, Database};
+use mongodb::bson;
 
 use crate::database::MongoItemStore;
 use crate::error::Error;
 
 use super::{Item, ItemId};
-
-const ITEMS: &str = "items";
 
 #[async_trait]
 pub trait ItemStore {
@@ -16,10 +14,6 @@ pub trait ItemStore {
     async fn fetch_items(&self) -> Result<Vec<Item>, Error>;
 
     async fn fetch_item_by_id(&self, item_id: ItemId) -> Result<Option<Item>, Error>;
-}
-
-pub async fn initialize(_db: &Database) -> Result<(), Error> {
-    Ok(())
 }
 
 #[async_trait]

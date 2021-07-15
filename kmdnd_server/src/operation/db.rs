@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use futures::TryStreamExt;
+use mongodb::bson;
 use mongodb::options::FindOptions;
-use mongodb::{bson, Database};
 
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
@@ -11,8 +11,6 @@ use crate::encounter::{EncounterId, Round};
 use crate::error::Error;
 
 use super::{Interaction, Legality, Operation, OperationId};
-
-const OPERATIONS: &str = "operations";
 
 #[async_trait]
 pub trait OperationStore {
@@ -60,22 +58,6 @@ pub trait OperationStore {
     ) -> Result<Operation, Error>;
 
     async fn delete_operation(&self, operation_id: OperationId) -> Result<(), Error>;
-}
-
-pub async fn initialize(db: &Database) -> Result<(), Error> {
-    db.run_command(
-        bson::doc! {
-            "createIndexes": OPERATIONS,
-            "indexes": [
-                { "key": { "campaign_id": 1, "created_at": 1 }, "name": "by_campaign_id" },
-                { "key": { "encounter_id": 1, "created_at": 1 }, "name": "by_encounter_id" },
-            ]
-        },
-        None,
-    )
-    .await?;
-
-    Ok(())
 }
 
 #[async_trait]

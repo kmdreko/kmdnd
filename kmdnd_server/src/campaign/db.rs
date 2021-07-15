@@ -1,17 +1,11 @@
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use mongodb::{bson, Database};
+use mongodb::bson;
 
 use crate::database::MongoCampaignStore;
 use crate::error::Error;
 
 use super::{Campaign, CampaignId};
-
-const CAMPAIGNS: &str = "campaigns";
-
-pub async fn initialize(_db: &Database) -> Result<(), Error> {
-    Ok(())
-}
 
 #[async_trait]
 pub trait CampaignStore {

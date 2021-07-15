@@ -33,14 +33,7 @@ async fn main() -> Result<(), Error> {
     let uri = "mongodb://localhost:27017";
     info!("connecting to db: {}", uri);
     let db = Client::with_uri_str(uri).await?.database("kmdnd");
-
-    campaign::db::initialize(&db).await?;
-    character::db::initialize(&db).await?;
-    encounter::db::initialize(&db).await?;
-    operation::db::initialize(&db).await?;
-    item::db::initialize(&db).await?;
-
-    let db = MongoDatabase::new(db);
+    let db = MongoDatabase::initialize(db).await?;
 
     seed::seed(&db).await?;
 

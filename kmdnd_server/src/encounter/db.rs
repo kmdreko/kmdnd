@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use futures::TryStreamExt;
+use mongodb::bson;
 use mongodb::options::{FindOneOptions, FindOptions};
-use mongodb::{bson, Database};
 
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
@@ -10,23 +10,6 @@ use crate::database::MongoEncounterStore;
 use crate::error::Error;
 
 use super::{Encounter, EncounterState};
-
-const ENCOUNTERS: &str = "encounters";
-
-pub async fn initialize(db: &Database) -> Result<(), Error> {
-    db.run_command(
-        bson::doc! {
-            "createIndexes": ENCOUNTERS,
-            "indexes": [
-                { "key": { "campaign_id": 1, "created_at": 1 }, "name": "by_campaign_id" },
-            ]
-        },
-        None,
-    )
-    .await?;
-
-    Ok(())
-}
 
 #[async_trait]
 pub trait EncounterStore {
