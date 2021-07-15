@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::character::{CharacterId, Position};
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::encounter::{EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{DamageType, ItemId};
@@ -101,7 +101,7 @@ pub enum AttackMethodBody {
 }
 
 impl AttackMethodBody {
-    async fn into_attack_method(self, db: &MongoDatabase) -> Result<AttackMethod, Error> {
+    async fn into_attack_method(self, db: &dyn Database) -> Result<AttackMethod, Error> {
         let attack_method = match self {
             AttackMethodBody::Unarmed { damage_type } => AttackMethod::Unarmed(damage_type),
             AttackMethodBody::Weapon { weapon_id } => {
@@ -164,7 +164,7 @@ pub struct SubmitInteractionBody {
 #[get("/campaigns/{campaign_id}/encounters/CURRENT/operations")]
 #[tracing::instrument(skip(db))]
 async fn get_operations_in_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<OperationBody>>, Error> {
     let campaign_id = params.into_inner();
@@ -191,7 +191,7 @@ async fn get_operations_in_current_encounter_in_campaign(
 #[get("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}")]
 #[tracing::instrument(skip(db))]
 async fn get_operation_by_id_in_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<OperationBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
@@ -216,7 +216,7 @@ async fn get_operation_by_id_in_current_encounter_in_campaign(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/approve")]
 #[tracing::instrument(skip(db))]
 async fn approve_illegal_operation(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<SuccessBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
@@ -255,7 +255,7 @@ async fn approve_illegal_operation(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/reject")]
 #[tracing::instrument(skip(db))]
 async fn reject_illegal_operation(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<SuccessBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
@@ -292,7 +292,7 @@ async fn reject_illegal_operation(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/operations/{operation_id}/interactions")]
 #[tracing::instrument(skip(db))]
 async fn submit_interaction_result_to_operation(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<(CampaignId, OperationId)>,
     body: Json<SubmitInteractionBody>,
 ) -> Result<Json<OperationBody>, Error> {
@@ -335,12 +335,12 @@ async fn submit_interaction_result_to_operation(
         OperationType::Action(action) => match action {
             Action::Attack(attack) => {
                 attack
-                    .handle_interaction_result(&db, campaign.id, &interaction, body.result)
+                    .handle_interaction_result(&***db, campaign.id, &interaction, body.result)
                     .await?
             }
             Action::CastSpell(cast) => {
                 cast.handle_interaction_result(
-                    &db,
+                    &***db,
                     campaign.id,
                     &encounter,
                     &operation,
@@ -375,7 +375,7 @@ async fn submit_interaction_result_to_operation(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/roll")]
 #[tracing::instrument(skip(db))]
 async fn roll_in_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
     body: Json<RollBody>,
 ) -> Result<Json<RollResultBody>, Error> {
@@ -453,7 +453,7 @@ async fn roll_in_current_encounter_in_campaign(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/begin")]
 #[tracing::instrument(skip(db))]
 async fn begin_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
 ) -> Result<Json<BeginEncounterResultBody>, Error> {
     let campaign_id = params.into_inner();
@@ -532,7 +532,7 @@ async fn begin_current_encounter_in_campaign(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/move")]
 #[tracing::instrument(skip(db))]
 async fn move_in_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
     body: Json<MoveBody>,
 ) -> Result<Json<OperationBody>, Error> {
@@ -647,7 +647,7 @@ async fn move_in_current_encounter_in_campaign(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/action")]
 #[tracing::instrument(skip(db))]
 async fn take_action_in_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
     body: Json<ActionBody>,
 ) -> Result<Json<OperationBody>, Error> {
@@ -690,10 +690,10 @@ async fn take_action_in_current_encounter_in_campaign(
 
     let (action, interactions, violations) = match body.action_type {
         ActionTypeBody::Attack(attack) => {
-            let attack_method = attack.method.into_attack_method(&db).await?;
+            let attack_method = attack.method.into_attack_method(&***db).await?;
 
             let (attack, interactions, violations) = Attack::submit(
-                &db,
+                &***db,
                 campaign.id,
                 &encounter,
                 source_character,
@@ -706,7 +706,7 @@ async fn take_action_in_current_encounter_in_campaign(
         }
         ActionTypeBody::CastSpell(cast) => {
             let (cast, interactions, violations) = Cast::submit(
-                &db,
+                &***db,
                 campaign_id,
                 &encounter,
                 source_character,

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::character::CharacterId;
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::error::Error;
 use crate::utils::SuccessBody;
 
@@ -42,7 +42,7 @@ impl EncounterBody {
 #[post("/campaigns/{campaign_id}/encounters")]
 #[tracing::instrument(skip(db))]
 async fn create_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
     body: Json<CreateEncounterBody>,
 ) -> Result<Json<EncounterBody>, Error> {
@@ -93,7 +93,7 @@ async fn create_encounter_in_campaign(
 #[get("/campaigns/{campaign_id}/encounters")]
 #[tracing::instrument(skip(db))]
 async fn get_encounters_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<EncounterBody>>, Error> {
     let campaign_id = params.into_inner();
@@ -114,7 +114,7 @@ async fn get_encounters_in_campaign(
 #[get("/campaigns/{campaign_id}/encounters/CURRENT")]
 #[tracing::instrument(skip(db))]
 async fn get_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
@@ -132,7 +132,7 @@ async fn get_current_encounter_in_campaign(
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/finish")]
 #[tracing::instrument(skip(db))]
 async fn finish_current_encounter_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
 ) -> Result<Json<SuccessBody>, Error> {
     let campaign_id = params.into_inner();

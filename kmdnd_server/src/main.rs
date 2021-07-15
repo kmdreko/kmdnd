@@ -20,7 +20,7 @@ mod violations;
 
 use error::Error;
 
-use crate::database::MongoDatabase;
+use crate::database::{Database, MongoDatabase};
 
 #[actix_web::main]
 async fn main() -> Result<(), Error> {
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Error> {
                 // format query errors with custom format
                 Error::InvalidQuery(err).into()
             }))
-            .data(db.clone())
+            .data(Box::new(db.clone()) as Box<dyn Database>)
             .wrap(TracingLogger::default())
             .service(campaign::endpoints::create_campaign)
             .service(campaign::endpoints::get_campaigns)

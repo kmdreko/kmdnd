@@ -5,7 +5,7 @@ use crate::character::race::Race;
 use crate::character::{
     Character, CharacterOwner, CharacterStats, EquipmentEntry, Position, Proficiencies, ToolType,
 };
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::encounter::{Encounter, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{
@@ -13,7 +13,7 @@ use crate::item::{
 };
 use crate::operation::{AbilityType, SkillType};
 
-pub async fn seed(db: &MongoDatabase) -> Result<(), Error> {
+pub async fn seed(db: &dyn Database) -> Result<(), Error> {
     db.drop().await?;
 
     let campaign_id = "CPN-16E77539-8873-4C8A-BCA3-2036010474AD".parse().unwrap();

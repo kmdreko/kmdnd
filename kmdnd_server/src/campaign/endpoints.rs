@@ -5,7 +5,7 @@ use futures::{stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::character::CharacterBody;
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::encounter::EncounterBody;
 use crate::error::Error;
 
@@ -27,7 +27,7 @@ struct CampaignBody {
 }
 
 impl CampaignBody {
-    pub async fn render(db: &MongoDatabase, campaign: Campaign) -> Result<CampaignBody, Error> {
+    pub async fn render(db: &dyn Database, campaign: Campaign) -> Result<CampaignBody, Error> {
         let characters = db
             .characters()
             .fetch_characters_by_campaign(campaign.id)
@@ -53,7 +53,7 @@ impl CampaignBody {
 #[post("/campaigns")]
 #[tracing::instrument(skip(db))]
 async fn create_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     body: Json<CreateCampaignBody>,
 ) -> Result<Json<CampaignBody>, Error> {
     let body = body.into_inner();
@@ -82,11 +82,11 @@ async fn create_campaign(
 
 #[get("/campaigns")]
 #[tracing::instrument(skip(db))]
-async fn get_campaigns(db: Data<MongoDatabase>) -> Result<Json<Vec<CampaignBody>>, Error> {
+async fn get_campaigns(db: Data<Box<dyn Database>>) -> Result<Json<Vec<CampaignBody>>, Error> {
     let campaigns = db.campaigns().fetch_campaigns().await?;
 
     let body = stream::iter(campaigns)
-        .then(|campaign| CampaignBody::render(&db, campaign))
+        .then(|campaign| CampaignBody::render(&***db, campaign))
         .try_collect()
         .await?;
 
@@ -96,7 +96,7 @@ async fn get_campaigns(db: Data<MongoDatabase>) -> Result<Json<Vec<CampaignBody>
 #[get("/campaigns/{campaign_id}")]
 #[tracing::instrument(skip(db))]
 async fn get_campaign_by_id(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
 ) -> Result<Json<CampaignBody>, Error> {
     let campaign_id = params.into_inner();
@@ -107,5 +107,5 @@ async fn get_campaign_by_id(
         .await?
         .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
 
-    Ok(Json(CampaignBody::render(&db, campaign).await?))
+    Ok(Json(CampaignBody::render(&***db, campaign).await?))
 }

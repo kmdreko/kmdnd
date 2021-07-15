@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::campaign::CampaignId;
 use crate::character::race::Race;
 use crate::character::Proficiencies;
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::error::Error;
 use crate::item::{self, ItemBody};
 use crate::operation::{AbilityType, RollType};
@@ -34,7 +34,7 @@ pub struct CharacterBody {
 }
 
 impl CharacterBody {
-    pub async fn render(db: &MongoDatabase, character: Character) -> Result<CharacterBody, Error> {
+    pub async fn render(db: &dyn Database, character: Character) -> Result<CharacterBody, Error> {
         let mut equipment = vec![];
         for entry in character.equipment {
             let item = db.items().fetch_item_by_id(entry.item_id).await?.ok_or(
@@ -73,7 +73,7 @@ pub struct ItemWithQuantityBody {
 #[post("/campaigns/{campaign_id}/characters")]
 #[tracing::instrument(skip(db))]
 async fn create_character_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
     body: Json<CreateCharacterBody>,
 ) -> Result<Json<CharacterBody>, Error> {
@@ -102,17 +102,17 @@ async fn create_character_in_campaign(
             skills: vec![],
         },
     };
-    character.recalculate_stats(&db).await?;
+    character.recalculate_stats(&***db).await?;
 
     db.characters().insert_character(&character).await?;
 
-    Ok(Json(CharacterBody::render(&db, character).await?))
+    Ok(Json(CharacterBody::render(&***db, character).await?))
 }
 
 #[get("/campaigns/{campaign_id}/characters")]
 #[tracing::instrument(skip(db))]
 async fn get_characters_in_campaign(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<CharacterBody>>, Error> {
     let campaign_id = params.into_inner();
@@ -125,7 +125,7 @@ async fn get_characters_in_campaign(
         .await?;
 
     let body = stream::iter(characters)
-        .then(|character| CharacterBody::render(&db, character))
+        .then(|character| CharacterBody::render(&***db, character))
         .try_collect()
         .await?;
 
@@ -135,7 +135,7 @@ async fn get_characters_in_campaign(
 #[get("/campaigns/{campaign_id}/characters/{character_id}")]
 #[tracing::instrument(skip(db))]
 async fn get_character_in_campaign_by_id(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<(CampaignId, CharacterId)>,
 ) -> Result<Json<CharacterBody>, Error> {
     let (campaign_id, character_id) = params.into_inner();
@@ -151,7 +151,7 @@ async fn get_character_in_campaign_by_id(
             character_id,
         })?;
 
-    Ok(Json(CharacterBody::render(&db, character).await?))
+    Ok(Json(CharacterBody::render(&***db, character).await?))
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -170,7 +170,7 @@ pub enum RollModifier {
 #[get("/campaigns/{campaign_id}/characters/{character_id}/roll/{roll_type}")]
 #[tracing::instrument(skip(db))]
 async fn get_character_roll_stats(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<(CampaignId, CharacterId, RollType)>,
 ) -> Result<Json<RollStatsBody>, Error> {
     let (campaign_id, character_id, roll_type) = params.into_inner();

@@ -2,7 +2,7 @@ use actix_web::get;
 use actix_web::web::{Data, Json, Path};
 use serde::Serialize;
 
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::error::Error;
 
 use super::{Item, ItemId, ItemType};
@@ -30,7 +30,7 @@ impl ItemBody {
 
 #[get("/items")]
 #[tracing::instrument(skip(db))]
-async fn get_items(db: Data<MongoDatabase>) -> Result<Json<Vec<ItemBody>>, Error> {
+async fn get_items(db: Data<Box<dyn Database>>) -> Result<Json<Vec<ItemBody>>, Error> {
     let items = db.items().fetch_items().await?;
 
     let body = items
@@ -44,7 +44,7 @@ async fn get_items(db: Data<MongoDatabase>) -> Result<Json<Vec<ItemBody>>, Error
 #[get("/items/{item_id}")]
 #[tracing::instrument(skip(db))]
 async fn get_item_by_id(
-    db: Data<MongoDatabase>,
+    db: Data<Box<dyn Database>>,
     params: Path<ItemId>,
 ) -> Result<Json<ItemBody>, Error> {
     let item_id = params.into_inner();

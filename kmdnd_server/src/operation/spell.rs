@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::character::{Character, Position};
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::encounter::Encounter;
 use crate::error::Error;
 use crate::operation::{AbilityType, InteractionId, RollType, SpellTarget};
@@ -18,7 +18,7 @@ pub struct Cast {
 
 impl Cast {
     pub async fn submit(
-        _db: &MongoDatabase,
+        _db: &dyn Database,
         _campaign_id: CampaignId,
         _encounter: &Encounter,
         source_character: Character,
@@ -87,7 +87,7 @@ impl Cast {
 
     pub async fn handle_interaction_result(
         &self,
-        db: &MongoDatabase,
+        db: &dyn Database,
         campaign_id: CampaignId,
         encounter: &Encounter,
         operation: &Operation,

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
 use crate::character::{Character, CharacterId, Position};
-use crate::database::MongoDatabase;
+use crate::database::Database;
 use crate::encounter::Encounter;
 use crate::error::Error;
 use crate::item::{DamageType, Weapon};
@@ -17,7 +17,7 @@ pub struct Attack {
 
 impl Attack {
     pub async fn submit(
-        db: &MongoDatabase,
+        db: &dyn Database,
         campaign_id: CampaignId,
         encounter: &Encounter,
         source_character: Character,
@@ -86,7 +86,7 @@ impl Attack {
 
     pub async fn handle_interaction_result(
         &self,
-        db: &MongoDatabase,
+        db: &dyn Database,
         campaign_id: CampaignId,
         interaction: &Interaction,
         result: i32,
