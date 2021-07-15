@@ -1,7 +1,8 @@
+use async_trait::async_trait;
 use futures::TryStreamExt;
 use mongodb::{bson, Database};
 
-use crate::database::CampaignStore;
+use crate::database::MongoCampaignStore;
 use crate::error::Error;
 
 use super::{Campaign, CampaignId};
@@ -12,36 +13,52 @@ pub async fn initialize(_db: &Database) -> Result<(), Error> {
     Ok(())
 }
 
-#[tracing::instrument(skip(db))]
-pub async fn insert_campaign(db: &CampaignStore, campaign: &Campaign) -> Result<(), Error> {
-    db.insert_one(campaign, None).await?;
+#[async_trait]
+pub trait CampaignStore {
+    async fn insert_campaign(&self, campaign: &Campaign) -> Result<(), Error>;
 
-    Ok(())
+    async fn fetch_campaigns(&self) -> Result<Vec<Campaign>, Error>;
+
+    async fn assert_campaign_exists(&self, campaign_id: CampaignId) -> Result<Campaign, Error>;
+
+    async fn fetch_campaign_by_id(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<Option<Campaign>, Error>;
 }
 
-#[tracing::instrument(skip(db))]
-pub async fn fetch_campaigns(db: &CampaignStore) -> Result<Vec<Campaign>, Error> {
-    let campaigns: Vec<Campaign> = db.find(bson::doc! {}, None).await?.try_collect().await?;
+#[async_trait]
+impl CampaignStore for MongoCampaignStore {
+    #[tracing::instrument(skip(self))]
+    async fn insert_campaign(&self, campaign: &Campaign) -> Result<(), Error> {
+        self.insert_one(campaign, None).await?;
 
-    Ok(campaigns)
-}
+        Ok(())
+    }
 
-#[tracing::instrument(skip(db))]
-pub async fn assert_campaign_exists(
-    db: &CampaignStore,
-    campaign_id: CampaignId,
-) -> Result<Campaign, Error> {
-    fetch_campaign_by_id(db, campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })
-}
+    #[tracing::instrument(skip(self))]
+    async fn fetch_campaigns(&self) -> Result<Vec<Campaign>, Error> {
+        let campaigns: Vec<Campaign> = self.find(bson::doc! {}, None).await?.try_collect().await?;
 
-#[tracing::instrument(skip(db))]
-pub async fn fetch_campaign_by_id(
-    db: &CampaignStore,
-    campaign_id: CampaignId,
-) -> Result<Option<Campaign>, Error> {
-    let campaign: Option<Campaign> = db.find_one(bson::doc! { "_id": campaign_id }, None).await?;
+        Ok(campaigns)
+    }
 
-    Ok(campaign)
+    #[tracing::instrument(skip(self))]
+    async fn assert_campaign_exists(&self, campaign_id: CampaignId) -> Result<Campaign, Error> {
+        self.fetch_campaign_by_id(campaign_id)
+            .await?
+            .ok_or(Error::CampaignDoesNotExist { campaign_id })
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn fetch_campaign_by_id(
+        &self,
+        campaign_id: CampaignId,
+    ) -> Result<Option<Campaign>, Error> {
+        let campaign: Option<Campaign> = self
+            .find_one(bson::doc! { "_id": campaign_id }, None)
+            .await?;
+
+        Ok(campaign)
+    }
 }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
-use crate::character::{self, Character, CharacterId, Position};
+use crate::character::{Character, CharacterId, Position};
 use crate::database::MongoDatabase;
 use crate::encounter::Encounter;
 use crate::error::Error;
@@ -24,16 +24,14 @@ impl Attack {
         target_character_id: CharacterId,
         method: AttackMethod,
     ) -> Result<(Attack, Vec<Interaction>, Vec<Violation>), Error> {
-        let target_character = character::db::fetch_character_by_campaign_and_id(
-            db.characters(),
-            campaign_id,
-            target_character_id,
-        )
-        .await?
-        .ok_or(Error::CharacterNotInCampaign {
-            campaign_id,
-            character_id: target_character_id,
-        })?;
+        let target_character = db
+            .characters()
+            .fetch_character_by_campaign_and_id(campaign_id, target_character_id)
+            .await?
+            .ok_or(Error::CharacterNotInCampaign {
+                campaign_id,
+                character_id: target_character_id,
+            })?;
 
         if !encounter.character_ids.contains(&target_character_id) {
             return Err(Error::CharacterNotInEncounter {
@@ -96,16 +94,14 @@ impl Attack {
         let new_interactions = match interaction.roll_type {
             RollType::Hit => {
                 let target_character_id = self.targets[0]; // TODO:
-                let target_character = character::db::fetch_character_by_campaign_and_id(
-                    db.characters(),
-                    campaign_id,
-                    target_character_id,
-                )
-                .await?
-                .ok_or(Error::CharacterDoesNotExistInCampaign {
-                    campaign_id,
-                    character_id: target_character_id,
-                })?;
+                let target_character = db
+                    .characters()
+                    .fetch_character_by_campaign_and_id(campaign_id, target_character_id)
+                    .await?
+                    .ok_or(Error::CharacterDoesNotExistInCampaign {
+                        campaign_id,
+                        character_id: target_character_id,
+                    })?;
 
                 if target_character.stats.armor_class <= result {
                     vec![Interaction {
@@ -120,24 +116,19 @@ impl Attack {
             }
             RollType::Damage => {
                 let target_character_id = self.targets[0]; // TODO:
-                let target_character = character::db::fetch_character_by_campaign_and_id(
-                    db.characters(),
-                    campaign_id,
-                    target_character_id,
-                )
-                .await?
-                .ok_or(Error::CharacterDoesNotExistInCampaign {
-                    campaign_id,
-                    character_id: target_character_id,
-                })?;
+                let target_character = db
+                    .characters()
+                    .fetch_character_by_campaign_and_id(campaign_id, target_character_id)
+                    .await?
+                    .ok_or(Error::CharacterDoesNotExistInCampaign {
+                        campaign_id,
+                        character_id: target_character_id,
+                    })?;
 
                 let new_hit_points = i32::max(target_character.current_hit_points - result, 0);
-                character::db::update_character_hit_points(
-                    db.characters(),
-                    target_character,
-                    new_hit_points,
-                )
-                .await?;
+                db.characters()
+                    .update_character_hit_points(target_character, new_hit_points)
+                    .await?;
 
                 vec![]
             }

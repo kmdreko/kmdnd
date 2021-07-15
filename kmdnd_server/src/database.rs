@@ -1,25 +1,22 @@
-// pub trait CampaignStore {
-
-// }
-
-// pub trait Database {
-//     fn campaigns(&self) -> &dyn CampaignStore;
-// }
-
 use mongodb::{Collection, Database};
 
+use crate::campaign::db::CampaignStore;
 use crate::campaign::Campaign;
+use crate::character::db::CharacterStore;
 use crate::character::Character;
+use crate::encounter::db::EncounterStore;
 use crate::encounter::Encounter;
 use crate::error::Error;
+use crate::item::db::ItemStore;
 use crate::item::Item;
+use crate::operation::db::OperationStore;
 use crate::operation::Operation;
 
-pub type CampaignStore = Collection<Campaign>;
-pub type CharacterStore = Collection<Character>;
-pub type EncounterStore = Collection<Encounter>;
-pub type ItemStore = Collection<Item>;
-pub type OperationStore = Collection<Operation>;
+pub type MongoCampaignStore = Collection<Campaign>;
+pub type MongoCharacterStore = Collection<Character>;
+pub type MongoEncounterStore = Collection<Encounter>;
+pub type MongoItemStore = Collection<Item>;
+pub type MongoOperationStore = Collection<Operation>;
 
 #[derive(Debug, Clone)]
 pub struct MongoDatabase {
@@ -43,23 +40,23 @@ impl MongoDatabase {
         }
     }
 
-    pub fn campaigns(&self) -> &CampaignStore {
+    pub fn campaigns(&self) -> &dyn CampaignStore {
         &self.campaigns
     }
 
-    pub fn characters(&self) -> &CharacterStore {
+    pub fn characters(&self) -> &dyn CharacterStore {
         &self.characters
     }
 
-    pub fn encounters(&self) -> &EncounterStore {
+    pub fn encounters(&self) -> &dyn EncounterStore {
         &self.encounters
     }
 
-    pub fn items(&self) -> &ItemStore {
+    pub fn items(&self) -> &dyn ItemStore {
         &self.items
     }
 
-    pub fn operations(&self) -> &OperationStore {
+    pub fn operations(&self) -> &dyn OperationStore {
         &self.operations
     }
 

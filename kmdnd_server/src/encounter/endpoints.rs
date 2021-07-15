@@ -3,13 +3,13 @@ use actix_web::{get, post};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::campaign::{self, CampaignId};
-use crate::character::{self, CharacterId};
+use crate::campaign::CampaignId;
+use crate::character::CharacterId;
 use crate::database::MongoDatabase;
 use crate::error::Error;
 use crate::utils::SuccessBody;
 
-use super::{db, Encounter, EncounterId, EncounterState};
+use super::{Encounter, EncounterId, EncounterState};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CreateEncounterBody {
@@ -47,12 +47,14 @@ async fn create_encounter_in_campaign(
     body: Json<CreateEncounterBody>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
+    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
 
     let body = body.into_inner();
 
-    let current_encounter =
-        db::fetch_current_encounter_by_campaign(db.encounters(), campaign.id).await?;
+    let current_encounter = db
+        .encounters()
+        .fetch_current_encounter_by_campaign(campaign.id)
+        .await?;
     if let Some(current_encounter) = current_encounter {
         return Err(Error::CurrentEncounterAlreadyExists {
             campaign_id: campaign.id,
@@ -60,8 +62,10 @@ async fn create_encounter_in_campaign(
         });
     }
 
-    let characters =
-        character::db::fetch_characters_by_campaign(db.characters(), campaign.id).await?;
+    let characters = db
+        .characters()
+        .fetch_characters_by_campaign(campaign.id)
+        .await?;
     for character_id in &body.character_ids {
         if !characters.iter().any(|c| c.id == *character_id) {
             return Err(Error::CharacterNotInCampaign {
@@ -81,7 +85,7 @@ async fn create_encounter_in_campaign(
         state: EncounterState::Initiative,
     };
 
-    db::insert_encounter(db.encounters(), &encounter).await?;
+    db.encounters().insert_encounter(&encounter).await?;
 
     Ok(Json(EncounterBody::render(encounter)))
 }
@@ -93,9 +97,12 @@ async fn get_encounters_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<EncounterBody>>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
+    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
 
-    let encounters = db::fetch_encounters_by_campaign(db.encounters(), campaign.id).await?;
+    let encounters = db
+        .encounters()
+        .fetch_encounters_by_campaign(campaign.id)
+        .await?;
     let body = encounters
         .into_iter()
         .map(|encounter| EncounterBody::render(encounter))
@@ -111,9 +118,11 @@ async fn get_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
+    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
 
-    let encounter = db::fetch_current_encounter_by_campaign(db.encounters(), campaign.id)
+    let encounter = db
+        .encounters()
+        .fetch_current_encounter_by_campaign(campaign.id)
         .await?
         .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
 
@@ -127,10 +136,15 @@ async fn finish_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<SuccessBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
-    let encounter = db::assert_current_encounter_exists(db.encounters(), campaign.id).await?;
+    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
+    let encounter = db
+        .encounters()
+        .assert_current_encounter_exists(campaign.id)
+        .await?;
 
-    db::update_encounter_state(db.encounters(), encounter, EncounterState::Finished).await?;
+    db.encounters()
+        .update_encounter_state(encounter, EncounterState::Finished)
+        .await?;
 
     Ok(Json(SuccessBody {}))
 }

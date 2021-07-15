@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use futures::{stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 
-use crate::campaign::{self, CampaignId};
+use crate::campaign::CampaignId;
 use crate::character::race::Race;
 use crate::character::Proficiencies;
 use crate::database::MongoDatabase;
@@ -12,7 +12,7 @@ use crate::error::Error;
 use crate::item::{self, ItemBody};
 use crate::operation::{AbilityType, RollType};
 
-use super::{db, Character, CharacterId, CharacterOwner, CharacterStats, Position};
+use super::{Character, CharacterId, CharacterOwner, CharacterStats, Position};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CreateCharacterBody {
@@ -37,11 +37,11 @@ impl CharacterBody {
     pub async fn render(db: &MongoDatabase, character: Character) -> Result<CharacterBody, Error> {
         let mut equipment = vec![];
         for entry in character.equipment {
-            let item = item::db::fetch_item_by_id(db.items(), entry.item_id)
-                .await?
-                .ok_or(Error::ItemDoesNotExist {
+            let item = db.items().fetch_item_by_id(entry.item_id).await?.ok_or(
+                Error::ItemDoesNotExist {
                     item_id: entry.item_id,
-                })?;
+                },
+            )?;
             let body = ItemBody::render(item);
             equipment.push(ItemWithQuantityBody {
                 quantity: entry.quantity,
@@ -80,7 +80,7 @@ async fn create_character_in_campaign(
     let campaign_id = params.into_inner();
     let body = body.into_inner();
 
-    campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
+    db.campaigns().assert_campaign_exists(campaign_id).await?;
 
     let now = Utc::now();
     let mut character = Character {
@@ -104,7 +104,7 @@ async fn create_character_in_campaign(
     };
     character.recalculate_stats(&db).await?;
 
-    db::insert_character(db.characters(), &character).await?;
+    db.characters().insert_character(&character).await?;
 
     Ok(Json(CharacterBody::render(&db, character).await?))
 }
@@ -117,9 +117,12 @@ async fn get_characters_in_campaign(
 ) -> Result<Json<Vec<CharacterBody>>, Error> {
     let campaign_id = params.into_inner();
 
-    campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
+    db.campaigns().assert_campaign_exists(campaign_id).await?;
 
-    let characters = db::fetch_characters_by_campaign(db.characters(), campaign_id).await?;
+    let characters = db
+        .characters()
+        .fetch_characters_by_campaign(campaign_id)
+        .await?;
 
     let body = stream::iter(characters)
         .then(|character| CharacterBody::render(&db, character))
@@ -137,15 +140,16 @@ async fn get_character_in_campaign_by_id(
 ) -> Result<Json<CharacterBody>, Error> {
     let (campaign_id, character_id) = params.into_inner();
 
-    campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
+    db.campaigns().assert_campaign_exists(campaign_id).await?;
 
-    let character =
-        db::fetch_character_by_campaign_and_id(db.characters(), campaign_id, character_id)
-            .await?
-            .ok_or(Error::CharacterDoesNotExistInCampaign {
-                campaign_id,
-                character_id,
-            })?;
+    let character = db
+        .characters()
+        .fetch_character_by_campaign_and_id(campaign_id, character_id)
+        .await?
+        .ok_or(Error::CharacterDoesNotExistInCampaign {
+            campaign_id,
+            character_id,
+        })?;
 
     Ok(Json(CharacterBody::render(&db, character).await?))
 }
@@ -170,14 +174,15 @@ async fn get_character_roll_stats(
     params: Path<(CampaignId, CharacterId, RollType)>,
 ) -> Result<Json<RollStatsBody>, Error> {
     let (campaign_id, character_id, roll_type) = params.into_inner();
-    let campaign = campaign::db::assert_campaign_exists(db.campaigns(), campaign_id).await?;
-    let character =
-        db::fetch_character_by_campaign_and_id(db.characters(), campaign.id, character_id)
-            .await?
-            .ok_or(Error::CharacterDoesNotExistInCampaign {
-                campaign_id: campaign.id,
-                character_id,
-            })?;
+    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
+    let character = db
+        .characters()
+        .fetch_character_by_campaign_and_id(campaign.id, character_id)
+        .await?
+        .ok_or(Error::CharacterDoesNotExistInCampaign {
+            campaign_id: campaign.id,
+            character_id,
+        })?;
 
     let mut stats = RollStatsBody {
         modifier: RollModifier::Normal,
@@ -209,7 +214,7 @@ async fn get_character_roll_stats(
     ) || matches!(roll_type, RollType::Hit)
     {
         let items: Vec<_> = stream::iter(&character.equipment)
-            .then(|equipment| item::db::fetch_item_by_id(db.items(), equipment.item_id))
+            .then(|equipment| db.items().fetch_item_by_id(equipment.item_id))
             .try_collect()
             .await?;
 

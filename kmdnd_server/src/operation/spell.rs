@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::campaign::CampaignId;
-use crate::character::{self, Character, Position};
+use crate::character::{Character, Position};
 use crate::database::MongoDatabase;
 use crate::encounter::Encounter;
 use crate::error::Error;
@@ -109,16 +109,14 @@ impl Cast {
 
                     let mut characters_in_encounter = vec![];
                     for &character_id in &encounter.character_ids {
-                        let character = character::db::fetch_character_by_campaign_and_id(
-                            db.characters(),
-                            campaign_id,
-                            character_id,
-                        )
-                        .await?
-                        .ok_or(Error::CharacterDoesNotExistInCampaign {
-                            campaign_id,
-                            character_id,
-                        })?;
+                        let character = db
+                            .characters()
+                            .fetch_character_by_campaign_and_id(campaign_id, character_id)
+                            .await?
+                            .ok_or(Error::CharacterDoesNotExistInCampaign {
+                                campaign_id,
+                                character_id,
+                            })?;
                         characters_in_encounter.push(character);
                     }
 
@@ -148,16 +146,14 @@ impl Cast {
                     interactions
                 }
                 RollType::Save(AbilityType::Dexterity) => {
-                    let target_character = character::db::fetch_character_by_campaign_and_id(
-                        db.characters(),
-                        campaign_id,
-                        interaction.character_id,
-                    )
-                    .await?
-                    .ok_or(Error::CharacterDoesNotExistInCampaign {
-                        campaign_id,
-                        character_id: interaction.character_id,
-                    })?;
+                    let target_character = db
+                        .characters()
+                        .fetch_character_by_campaign_and_id(campaign_id, interaction.character_id)
+                        .await?
+                        .ok_or(Error::CharacterDoesNotExistInCampaign {
+                            campaign_id,
+                            character_id: interaction.character_id,
+                        })?;
 
                     let damage_interaction = operation
                         .interactions
@@ -178,12 +174,9 @@ impl Cast {
                     };
 
                     let new_hit_points = i32::max(target_character.current_hit_points - damage, 0);
-                    character::db::update_character_hit_points(
-                        db.characters(),
-                        target_character,
-                        new_hit_points,
-                    )
-                    .await?;
+                    db.characters()
+                        .update_character_hit_points(target_character, new_hit_points)
+                        .await?;
 
                     vec![]
                 }
