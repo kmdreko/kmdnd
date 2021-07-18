@@ -101,6 +101,7 @@ async fn create_character_in_campaign(
             saving_throws: vec![],
             skills: vec![],
         },
+        racial_traits: vec![],
     };
     character.recalculate_stats(&***db).await?;
 

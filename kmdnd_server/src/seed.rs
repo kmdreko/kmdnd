@@ -1,9 +1,10 @@
 use chrono::Utc;
 
 use crate::campaign::Campaign;
-use crate::character::race::Race;
+use crate::character::race::{Race, RacialTrait};
 use crate::character::{
-    Character, CharacterOwner, CharacterStats, EquipmentEntry, Position, Proficiencies, ToolType,
+    Character, CharacterOwner, CharacterStats, EquipmentEntry, Language, Position, Proficiencies,
+    ToolType,
 };
 use crate::database::Database;
 use crate::encounter::{Encounter, EncounterId, EncounterState};
@@ -122,6 +123,18 @@ pub async fn seed(db: &dyn Database) -> Result<(), Error> {
             saving_throws: vec![AbilityType::Strength, AbilityType::Constitution],
             skills: vec![SkillType::Athletics, SkillType::Intimidation],
         },
+        racial_traits: vec![
+            RacialTrait::AbilityScoreIncrease(vec![
+                AbilityType::Strength,
+                AbilityType::Strength,
+                AbilityType::Constitution,
+            ]),
+            RacialTrait::Darkvision,
+            RacialTrait::Menacing,
+            RacialTrait::RelentlessEndurance,
+            RacialTrait::SavageAttacks,
+            RacialTrait::Languages(vec![Language::Common, Language::Orc]),
+        ],
     };
 
     let mut character2 = Character {
@@ -157,6 +170,15 @@ pub async fn seed(db: &dyn Database) -> Result<(), Error> {
             saving_throws: vec![AbilityType::Dexterity, AbilityType::Charisma],
             skills: vec![SkillType::SleightOfHand, SkillType::Nature],
         },
+        racial_traits: vec![
+            RacialTrait::AbilityScoreIncrease(vec![
+                AbilityType::Intelligence,
+                AbilityType::Intelligence,
+            ]),
+            RacialTrait::Darkvision,
+            RacialTrait::GnomeCunning,
+            RacialTrait::Languages(vec![Language::Common, Language::Gnomish]),
+        ],
     };
 
     character1.recalculate_stats(db).await?;

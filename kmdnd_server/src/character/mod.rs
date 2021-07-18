@@ -17,7 +17,7 @@ pub mod endpoints;
 pub mod race;
 pub use endpoints::*;
 
-use self::race::Race;
+use self::race::{Race, RacialTrait};
 
 pub type CharacterId = TypedId<Character>;
 
@@ -37,6 +37,7 @@ pub struct Character {
     pub current_hit_points: i32,
     pub maximum_hit_points: i32,
     pub race: Race,
+    pub racial_traits: Vec<RacialTrait>,
     pub proficiencies: Proficiencies,
     // conditions: Vec<Condition>,
 }
@@ -218,7 +219,7 @@ pub struct Proficiencies {
     pub skills: Vec<SkillType>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum ToolType {
     // Artisan Tools
@@ -236,7 +237,7 @@ pub enum ToolType {
     PainterTupplies,
     PottersTools,
     SmithsTools,
-    TinkerssTools,
+    TinkersTools,
     WeaversTools,
     WoodcarversTools,
 
@@ -266,4 +267,25 @@ pub enum ToolType {
 
     PoisonerKit,
     TheivesTools,
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+pub enum Language {
+    Common,
+    Dwarvish,
+    Elvish,
+    Giant,
+    Gnomish,
+    Goblin,
+    Halfling,
+    Orc,
+
+    Abyssal,
+    Celestial,
+    Draconic,
+    DeepSpeech,
+    Infernal,
+    Primordial,
+    Sylvan,
+    Undercommon,
 }
