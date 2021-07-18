@@ -11,17 +11,17 @@ use crate::error::Error;
 
 use super::{manager, Campaign, CampaignId};
 
-#[derive(Clone, Debug, Deserialize)]
-struct CreateCampaignBody {
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CreateCampaignBody {
     pub name: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
-struct CampaignBody {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CampaignBody {
     pub id: CampaignId,
     pub name: String,
-    pub characters: Vec<CharacterBody>,
-    pub current_encounter: Option<EncounterBody>,
+    characters: Vec<CharacterBody>,
+    current_encounter: Option<EncounterBody>,
     pub created_at: DateTime<Utc>,
     pub modified_at: DateTime<Utc>,
 }

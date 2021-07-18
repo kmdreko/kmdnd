@@ -1,13 +1,13 @@
 use actix_web::get;
 use actix_web::web::{Data, Json, Path};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::database::Database;
 use crate::error::Error;
 
 use super::{Item, ItemId, ItemType};
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ItemBody {
     pub id: ItemId,
     pub name: String,

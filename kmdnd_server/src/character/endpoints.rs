@@ -19,7 +19,7 @@ pub struct CreateCharacterBody {
     pub name: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CharacterBody {
     pub id: CharacterId,
     pub owner: CharacterOwner,
@@ -64,7 +64,7 @@ impl CharacterBody {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ItemWithQuantityBody {
     pub quantity: i32,
     pub item: ItemBody,

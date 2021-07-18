@@ -16,7 +16,7 @@ pub struct CreateEncounterBody {
     pub character_ids: Vec<CharacterId>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EncounterBody {
     pub id: EncounterId,
     pub campaign_id: CampaignId,
