@@ -9,7 +9,7 @@ use crate::database::Database;
 use crate::encounter::EncounterBody;
 use crate::error::Error;
 
-use super::{Campaign, CampaignId};
+use super::{manager, Campaign, CampaignId};
 
 #[derive(Clone, Debug, Deserialize)]
 struct CreateCampaignBody {
@@ -60,15 +60,7 @@ async fn create_campaign(
 ) -> Result<Json<CampaignBody>, Error> {
     let body = body.into_inner();
 
-    let now = Utc::now();
-    let campaign = Campaign {
-        id: CampaignId::new(),
-        name: body.name,
-        created_at: now,
-        modified_at: now,
-    };
-
-    db.campaigns().insert_campaign(&campaign).await?;
+    let campaign = manager::create_campaign(&***db, body.name).await?;
 
     let body = CampaignBody {
         id: campaign.id,
@@ -85,7 +77,7 @@ async fn create_campaign(
 #[get("/campaigns")]
 #[tracing::instrument(skip(db))]
 async fn get_campaigns(db: Data<Box<dyn Database>>) -> Result<Json<Vec<CampaignBody>>, Error> {
-    let campaigns = db.campaigns().fetch_campaigns().await?;
+    let campaigns = manager::get_campaigns(&***db).await?;
 
     let body = stream::iter(campaigns)
         .then(|campaign| CampaignBody::render(&***db, campaign))
@@ -103,35 +95,7 @@ async fn get_campaign_by_id(
 ) -> Result<Json<CampaignBody>, Error> {
     let campaign_id = params.into_inner();
 
-    let campaign = db
-        .campaigns()
-        .fetch_campaign_by_id(campaign_id)
-        .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+    let campaign = manager::get_campaign_by_id(&***db, campaign_id).await?;
 
     Ok(Json(CampaignBody::render(&***db, campaign).await?))
-}
-
-#[cfg(test)]
-mod tests {
-    // use super::*;
-    // use crate::database::test::MockDatabase;
-
-    // #[tokio::test]
-    // async fn illegal_operation_can_be_approved() {
-    //     let mut db = Box::new(MockDatabase::new());
-    //     db.campaigns.on_insert_campaign = Box::new(|campaign| {
-    //         assert!(campaign.name == "Blue Man Group".to_string());
-    //         Ok(())
-    //     });
-
-    //     create_campaign(
-    //         Data::new(db),
-    //         Json(CreateCampaignBody {
-    //             name: "Blue Man Group".into(),
-    //         }),
-    //     )
-    //     .await
-    //     .unwrap();
-    // }
 }

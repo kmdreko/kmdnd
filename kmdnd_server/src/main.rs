@@ -5,6 +5,9 @@ use tracing::{info, Level};
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+#[macro_use]
+extern crate derivative;
+
 mod campaign;
 mod character;
 mod database;

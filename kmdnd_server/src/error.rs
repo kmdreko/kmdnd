@@ -17,18 +17,19 @@ use crate::operation::spell::SpellTargetType;
 use crate::operation::{InteractionId, Legality, OperationId, SpellTarget};
 use crate::violations::Violation;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Derivative)]
+#[derivative(PartialEq, Eq)]
 #[serde(untagged)]
 pub enum Error {
     // 400
     #[serde(serialize_with = "display")]
-    InvalidJson(JsonPayloadError),
+    InvalidJson(#[derivative(PartialEq = "ignore")] JsonPayloadError),
     #[serde(serialize_with = "display")]
-    InvalidPath(PathError),
+    InvalidPath(#[derivative(PartialEq = "ignore")] PathError),
     #[serde(serialize_with = "display")]
-    InvalidForm(UrlencodedError),
+    InvalidForm(#[derivative(PartialEq = "ignore")] UrlencodedError),
     #[serde(serialize_with = "display")]
-    InvalidQuery(QueryPayloadError),
+    InvalidQuery(#[derivative(PartialEq = "ignore")] QueryPayloadError),
 
     // 404
     PathDoesNotExist,
@@ -105,25 +106,29 @@ pub enum Error {
         name: String,
     },
     CastUsesWrongTargetType {
+        #[derivative(PartialEq = "ignore")]
         expected_type: SpellTargetType,
+        #[derivative(PartialEq = "ignore")]
         provided_type: SpellTarget,
     },
     OperationViolatesRules {
+        #[derivative(PartialEq = "ignore")]
         violations: Vec<Violation>,
     },
     OperationIsNotPending {
         operation_id: OperationId,
+        #[derivative(PartialEq = "ignore")]
         legality: Legality,
     },
 
     // 500
     ExistentialState(String),
     #[serde(serialize_with = "display")]
-    FailedDatabaseCall(DatabaseError),
+    FailedDatabaseCall(#[derivative(PartialEq = "ignore")] DatabaseError),
     #[serde(serialize_with = "display")]
-    FailedToSerializeToBson(BsonError),
+    FailedToSerializeToBson(#[derivative(PartialEq = "ignore")] BsonError),
     #[serde(serialize_with = "display")]
-    IoError(IoError),
+    IoError(#[derivative(PartialEq = "ignore")] IoError),
 }
 
 impl Error {
