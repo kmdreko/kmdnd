@@ -1,9 +1,8 @@
 use actix_web::web::{self, Data, FormConfig, JsonConfig, PathConfig, QueryConfig};
 use actix_web::{App, HttpServer, ResponseError};
 use mongodb::Client;
-use tracing::{info, Level};
+use tracing::info;
 use tracing_actix_web::TracingLogger;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 #[macro_use]
 extern crate derivative;
@@ -27,19 +26,15 @@ pub use error::Error;
 use crate::database::{Database, MongoDatabase};
 
 #[actix_web::main]
-pub async fn run() -> Result<(), Error> {
-    tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .with_span_events(FmtSpan::NEW)
-        .compact()
-        .init();
-
+pub async fn run(should_seed: bool) -> Result<(), Error> {
     let uri = "mongodb://localhost:27017";
     info!("connecting to db: {}", uri);
     let db = Client::with_uri_str(uri).await?.database("kmdnd");
     let db = MongoDatabase::initialize(db).await?;
 
-    seed::seed(&db).await?;
+    if should_seed {
+        seed::seed(&db).await?;
+    }
 
     HttpServer::new(move || {
         App::new()

@@ -4,7 +4,7 @@ use kmdnd_server::{CampaignBody, CreateCampaignBody};
 #[actix_web::main]
 #[test]
 async fn create_campaign() {
-    let _ = std::thread::spawn(kmdnd_server::run);
+    let _ = std::thread::spawn(|| kmdnd_server::run(false));
 
     let body = CreateCampaignBody {
         name: "The Green Bean Brigade".into(),
