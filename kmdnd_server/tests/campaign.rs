@@ -1,8 +1,7 @@
 use awc::Client;
 use kmdnd_server::{CampaignBody, CreateCampaignBody};
 
-#[actix_web::main]
-#[test]
+#[actix_rt::test]
 async fn create_campaign() {
     let _ = std::thread::spawn(|| kmdnd_server::run(false));
 

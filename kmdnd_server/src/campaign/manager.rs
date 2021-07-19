@@ -47,7 +47,7 @@ mod tests {
     use crate::database::test::MockDatabase;
     use std::sync::{Arc, Mutex};
 
-    #[tokio::test]
+    #[actix_rt::test]
     async fn can_create_campaign() {
         let mut db = MockDatabase::new();
         let called_insert = Arc::new(Mutex::new(false));
@@ -69,7 +69,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[actix_rt::test]
     async fn get_campaign_by_id_returns_campaign() {
         let mut db = MockDatabase::new();
         let test_campaign_id = CampaignId::new();
@@ -97,7 +97,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[actix_rt::test]
     async fn get_campaign_by_id_returns_error_if_doesnt_exist() {
         let mut db = MockDatabase::new();
         let test_campaign_id = CampaignId::new();
