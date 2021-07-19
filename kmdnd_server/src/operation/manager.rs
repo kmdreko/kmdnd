@@ -38,12 +38,24 @@ pub async fn get_operation_by_id_in_current_encounter_in_campaign(
     campaign: &Campaign,
     encounter: &Encounter,
     operation_id: OperationId,
+) -> Result<Option<Operation>, Error> {
+    let operation = db.operations().fetch_operation_by_id(operation_id).await?;
+
+    Ok(operation)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn assert_operation_by_id_in_current_encounter_in_campaign(
+    db: &dyn Database,
+    campaign: &Campaign,
+    encounter: &Encounter,
+    operation_id: OperationId,
 ) -> Result<Operation, Error> {
     let operation = db
         .operations()
         .fetch_operation_by_id(operation_id)
         .await?
-        .ok_or(Error::OperationDoesNotExist {
+        .ok_or(Error::OperationNotFound {
             encounter_id: encounter.id,
             operation_id,
         })?;
@@ -56,17 +68,8 @@ pub async fn approve_illegal_operation(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
-    operation_id: OperationId,
+    operation: Operation,
 ) -> Result<(), Error> {
-    let operation = db
-        .operations()
-        .fetch_operation_by_id(operation_id)
-        .await?
-        .ok_or(Error::OperationDoesNotExist {
-            encounter_id: encounter.id,
-            operation_id,
-        })?;
-
     match operation.legality.clone() {
         Legality::IllegalPending { violations } => {
             db.operations()
@@ -89,17 +92,8 @@ pub async fn reject_illegal_operation(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
-    operation_id: OperationId,
+    operation: Operation,
 ) -> Result<(), Error> {
-    let operation = db
-        .operations()
-        .fetch_operation_by_id(operation_id)
-        .await?
-        .ok_or(Error::OperationDoesNotExist {
-            encounter_id: encounter.id,
-            operation_id,
-        })?;
-
     match operation.legality.clone() {
         Legality::IllegalPending { .. } => {
             db.operations().delete_operation(operation.id).await?;
@@ -120,26 +114,17 @@ pub async fn submit_interaction_result_to_operation(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
-    operation_id: OperationId,
+    mut operation: Operation,
     interaction_id: InteractionId,
     character_id: CharacterId,
     result: i32,
 ) -> Result<Operation, Error> {
-    let mut operation = db
-        .operations()
-        .fetch_operation_by_id(operation_id)
-        .await?
-        .ok_or(Error::OperationDoesNotExist {
-            encounter_id: encounter.id,
-            operation_id,
-        })?;
-
     let (index, interaction) = operation
         .interactions
         .iter()
         .enumerate()
         .find(|(_, inter)| inter.id == interaction_id)
-        .ok_or(Error::InteractionDoesNotExist {
+        .ok_or(Error::InteractionNotFound {
             operation_id: operation.id,
             interaction_id,
         })?;

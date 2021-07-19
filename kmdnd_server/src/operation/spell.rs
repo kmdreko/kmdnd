@@ -114,7 +114,7 @@ impl Cast {
                             .characters()
                             .fetch_character_by_campaign_and_id(campaign_id, character_id)
                             .await?
-                            .ok_or(Error::CharacterDoesNotExistInCampaign {
+                            .ok_or(Error::CharacterNotFoundInCampaign {
                                 campaign_id,
                                 character_id,
                             })?;
@@ -151,7 +151,7 @@ impl Cast {
                         .characters()
                         .fetch_character_by_campaign_and_id(campaign_id, interaction.character_id)
                         .await?
-                        .ok_or(Error::CharacterDoesNotExistInCampaign {
+                        .ok_or(Error::CharacterNotFoundInCampaign {
                             campaign_id,
                             character_id: interaction.character_id,
                         })?;

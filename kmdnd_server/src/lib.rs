@@ -78,7 +78,7 @@ pub async fn run(should_seed: bool) -> Result<(), Error> {
             .service(operation::endpoints::take_action_in_current_encounter_in_campaign)
             .service(item::endpoints::get_items)
             .service(item::endpoints::get_item_by_id)
-            .default_service(web::to(|| Error::PathDoesNotExist.error_response()))
+            .default_service(web::to(|| Error::PathNotFound.error_response()))
     })
     .bind("127.0.0.1:8080")?
     .run()

@@ -11,7 +11,14 @@ pub async fn get_items(db: &dyn Database) -> Result<Vec<Item>, Error> {
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn get_item_by_id(db: &dyn Database, item_id: ItemId) -> Result<Item, Error> {
+pub async fn get_item_by_id(db: &dyn Database, item_id: ItemId) -> Result<Option<Item>, Error> {
+    let item = db.items().fetch_item_by_id(item_id).await?;
+
+    Ok(item)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn assert_item_by_id(db: &dyn Database, item_id: ItemId) -> Result<Item, Error> {
     let item = db
         .items()
         .fetch_item_by_id(item_id)

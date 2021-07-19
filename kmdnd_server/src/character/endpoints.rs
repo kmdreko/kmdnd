@@ -83,8 +83,10 @@ async fn create_character_in_campaign(
     body: Json<CreateCharacterBody>,
 ) -> Result<Json<CharacterBody>, Error> {
     let campaign_id = params.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
     let body = body.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
     let character = manager::create_character_in_campaign(&***db, &campaign, body.name).await?;
 
@@ -98,7 +100,9 @@ async fn get_characters_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<CharacterBody>>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
 
     let characters = manager::get_characters_in_campaign(&***db, &campaign).await?;
 
@@ -117,10 +121,15 @@ async fn get_character_in_campaign_by_id(
     params: Path<(CampaignId, CharacterId)>,
 ) -> Result<Json<CharacterBody>, Error> {
     let (campaign_id, character_id) = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-
-    let character =
-        manager::get_character_in_campaign_by_id(&***db, &campaign, character_id).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let character = manager::get_character_in_campaign_by_id(&***db, &campaign, character_id)
+        .await?
+        .ok_or(Error::CharacterNotFoundInCampaign {
+            campaign_id: campaign.id,
+            character_id,
+        })?;
 
     Ok(Json(CharacterBody::render(&***db, character).await?))
 }
@@ -132,10 +141,18 @@ async fn get_character_roll_stats(
     params: Path<(CampaignId, CharacterId, RollType)>,
 ) -> Result<Json<RollStatsBody>, Error> {
     let (campaign_id, character_id, roll_type) = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let character = manager::get_character_in_campaign_by_id(&***db, &campaign, character_id)
+        .await?
+        .ok_or(Error::CharacterNotFoundInCampaign {
+            campaign_id: campaign.id,
+            character_id,
+        })?;
 
     let modifier =
-        manager::get_character_roll_stats(&***db, &campaign, character_id, roll_type).await?;
+        manager::get_character_roll_stats(&***db, &campaign, &character, roll_type).await?;
 
     Ok(Json(RollStatsBody { modifier }))
 }

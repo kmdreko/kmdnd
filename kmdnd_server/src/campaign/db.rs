@@ -13,8 +13,6 @@ pub trait CampaignStore {
 
     async fn fetch_campaigns(&self) -> Result<Vec<Campaign>, Error>;
 
-    async fn assert_campaign_exists(&self, campaign_id: CampaignId) -> Result<Campaign, Error>;
-
     async fn fetch_campaign_by_id(
         &self,
         campaign_id: CampaignId,
@@ -35,13 +33,6 @@ impl CampaignStore for MongoCampaignStore {
         let campaigns: Vec<Campaign> = self.find(bson::doc! {}, None).await?.try_collect().await?;
 
         Ok(campaigns)
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn assert_campaign_exists(&self, campaign_id: CampaignId) -> Result<Campaign, Error> {
-        self.fetch_campaign_by_id(campaign_id)
-            .await?
-            .ok_or(Error::CampaignDoesNotExist { campaign_id })
     }
 
     #[tracing::instrument(skip(self))]
@@ -87,12 +78,6 @@ impl CampaignStore for MockCampaignStore {
 
     async fn fetch_campaigns(&self) -> Result<Vec<Campaign>, Error> {
         (self.on_fetch_campaigns)()
-    }
-
-    async fn assert_campaign_exists(&self, campaign_id: CampaignId) -> Result<Campaign, Error> {
-        self.fetch_campaign_by_id(campaign_id)
-            .await?
-            .ok_or(Error::CampaignDoesNotExist { campaign_id })
     }
 
     async fn fetch_campaign_by_id(

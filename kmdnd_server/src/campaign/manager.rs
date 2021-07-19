@@ -28,15 +28,22 @@ pub async fn get_campaigns(db: &dyn Database) -> Result<Vec<Campaign>, Error> {
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn get_campaign_by_id(
+pub async fn assert_campaign_exists(
     db: &dyn Database,
     campaign_id: CampaignId,
 ) -> Result<Campaign, Error> {
-    let campaign = db
-        .campaigns()
+    db.campaigns()
         .fetch_campaign_by_id(campaign_id)
         .await?
-        .ok_or(Error::CampaignDoesNotExist { campaign_id })?;
+        .ok_or(Error::CampaignNotFound { campaign_id })
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn get_campaign_by_id(
+    db: &dyn Database,
+    campaign_id: CampaignId,
+) -> Result<Option<Campaign>, Error> {
+    let campaign = db.campaigns().fetch_campaign_by_id(campaign_id).await?;
 
     Ok(campaign)
 }
@@ -87,7 +94,7 @@ mod tests {
             }))
         });
 
-        let campaign = get_campaign_by_id(&db, test_campaign_id).await.unwrap();
+        let campaign = assert_campaign_exists(&db, test_campaign_id).await.unwrap();
 
         assert_eq!(campaign.name, "Blue Man Group".to_string());
         assert_eq!(campaign.created_at, campaign.modified_at);
@@ -109,11 +116,11 @@ mod tests {
             Ok(None)
         });
 
-        let campaign_result = get_campaign_by_id(&db, test_campaign_id).await;
+        let campaign_result = assert_campaign_exists(&db, test_campaign_id).await;
 
         assert_eq!(
             campaign_result.unwrap_err(),
-            Error::CampaignDoesNotExist {
+            Error::CampaignNotFound {
                 campaign_id: test_campaign_id
             }
         );

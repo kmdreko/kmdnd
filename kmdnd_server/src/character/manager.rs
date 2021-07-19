@@ -63,12 +63,26 @@ pub async fn get_character_in_campaign_by_id(
     db: &dyn Database,
     campaign: &Campaign,
     character_id: CharacterId,
+) -> Result<Option<Character>, Error> {
+    let character = db
+        .characters()
+        .fetch_character_by_campaign_and_id(campaign.id, character_id)
+        .await?;
+
+    Ok(character)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn assert_character_in_campaign_by_id(
+    db: &dyn Database,
+    campaign: &Campaign,
+    character_id: CharacterId,
 ) -> Result<Character, Error> {
     let character = db
         .characters()
         .fetch_character_by_campaign_and_id(campaign.id, character_id)
         .await?
-        .ok_or(Error::CharacterDoesNotExistInCampaign {
+        .ok_or(Error::CharacterNotFoundInCampaign {
             campaign_id: campaign.id,
             character_id,
         })?;
@@ -80,18 +94,9 @@ pub async fn get_character_in_campaign_by_id(
 pub async fn get_character_roll_stats(
     db: &dyn Database,
     campaign: &Campaign,
-    character_id: CharacterId,
+    character: &Character,
     roll_type: RollType,
 ) -> Result<RollModifier, Error> {
-    let character = db
-        .characters()
-        .fetch_character_by_campaign_and_id(campaign.id, character_id)
-        .await?
-        .ok_or(Error::CharacterDoesNotExistInCampaign {
-            campaign_id: campaign.id,
-            character_id,
-        })?;
-
     let mut modifier = RollModifier::Normal;
     match roll_type {
         RollType::SkillCheck(skill) => {

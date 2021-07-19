@@ -78,7 +78,7 @@ impl EncounterStore for MongoEncounterStore {
     ) -> Result<Encounter, Error> {
         self.fetch_current_encounter_by_campaign(campaign_id)
             .await?
-            .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })
+            .ok_or(Error::CurrentEncounterNotFound { campaign_id })
     }
 
     #[tracing::instrument(skip(self))]

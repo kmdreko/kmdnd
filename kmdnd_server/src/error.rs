@@ -32,25 +32,25 @@ pub enum Error {
     InvalidQuery(#[derivative(PartialEq = "ignore")] QueryPayloadError),
 
     // 404
-    PathDoesNotExist,
-    CampaignDoesNotExist {
+    PathNotFound,
+    CampaignNotFound {
         campaign_id: CampaignId,
     },
-    CharacterDoesNotExistInCampaign {
+    CharacterNotFoundInCampaign {
         campaign_id: CampaignId,
         character_id: CharacterId,
     },
-    CurrentEncounterDoesNotExist {
+    CurrentEncounterNotFound {
         campaign_id: CampaignId,
     },
     ItemDoesNotExist {
         item_id: ItemId,
     },
-    OperationDoesNotExist {
+    OperationNotFound {
         encounter_id: EncounterId,
         operation_id: OperationId,
     },
-    InteractionDoesNotExist {
+    InteractionNotFound {
         operation_id: OperationId,
         interaction_id: InteractionId,
     },
@@ -138,13 +138,13 @@ impl Error {
             Error::InvalidPath(_) => "E4001001",
             Error::InvalidForm(_) => "E4001002",
             Error::InvalidQuery(_) => "E4001003",
-            Error::PathDoesNotExist => "E4041000",
-            Error::CampaignDoesNotExist { .. } => "E4041001",
-            Error::CharacterDoesNotExistInCampaign { .. } => "E4041002",
-            Error::CurrentEncounterDoesNotExist { .. } => "E4041003",
+            Error::PathNotFound => "E4041000",
+            Error::CampaignNotFound { .. } => "E4041001",
+            Error::CharacterNotFoundInCampaign { .. } => "E4041002",
+            Error::CurrentEncounterNotFound { .. } => "E4041003",
             Error::ItemDoesNotExist { .. } => "E4041004",
-            Error::OperationDoesNotExist { .. } => "E4041005",
-            Error::InteractionDoesNotExist { .. } => "E4041006",
+            Error::OperationNotFound { .. } => "E4041005",
+            Error::InteractionNotFound { .. } => "E4041006",
             Error::ConcurrentModificationDetected => "E4091000",
             Error::CurrentEncounterAlreadyExists { .. } => "E4091001",
             Error::CharacterNotInCampaign { .. } => "E4091002",
@@ -173,17 +173,17 @@ impl Error {
             Error::InvalidPath(_) => "The given path could not be parsed",
             Error::InvalidForm(_) => "The given form could not be parsed",
             Error::InvalidQuery(_) => "The given query could not be parsed",
-            Error::PathDoesNotExist => "The requested path does not exist",
-            Error::CampaignDoesNotExist { .. } => "The requested campaign does not exist",
-            Error::CharacterDoesNotExistInCampaign { .. } => {
-                "The requested character is not in the campaign"
+            Error::PathNotFound => "The requested path was not found",
+            Error::CampaignNotFound { .. } => "The requested campaign was not found",
+            Error::CharacterNotFoundInCampaign { .. } => {
+                "The requested character was not found in the campaign"
             }
-            Error::CurrentEncounterDoesNotExist { .. } => {
+            Error::CurrentEncounterNotFound { .. } => {
                 "The requested campaign is not currently in an encounter"
             }
-            Error::ItemDoesNotExist { .. } => "The requested item does not exist",
-            Error::OperationDoesNotExist { .. } => "The requested operation does not exist",
-            Error::InteractionDoesNotExist { .. } => "The requested interaction does not exist",
+            Error::ItemDoesNotExist { .. } => "The requested item was not found",
+            Error::OperationNotFound { .. } => "The requested operation was not found",
+            Error::InteractionNotFound { .. } => "The requested interaction was not found",
             Error::ConcurrentModificationDetected => {
                 "The server detected a concurrent modification"
             }
@@ -242,13 +242,13 @@ impl ResponseError for Error {
             Error::InvalidPath(_) => StatusCode::BAD_REQUEST,
             Error::InvalidForm(_) => StatusCode::BAD_REQUEST,
             Error::InvalidQuery(_) => StatusCode::BAD_REQUEST,
-            Error::PathDoesNotExist => StatusCode::NOT_FOUND,
-            Error::CampaignDoesNotExist { .. } => StatusCode::NOT_FOUND,
-            Error::CharacterDoesNotExistInCampaign { .. } => StatusCode::NOT_FOUND,
-            Error::CurrentEncounterDoesNotExist { .. } => StatusCode::NOT_FOUND,
+            Error::PathNotFound => StatusCode::NOT_FOUND,
+            Error::CampaignNotFound { .. } => StatusCode::NOT_FOUND,
+            Error::CharacterNotFoundInCampaign { .. } => StatusCode::NOT_FOUND,
+            Error::CurrentEncounterNotFound { .. } => StatusCode::NOT_FOUND,
             Error::ItemDoesNotExist { .. } => StatusCode::NOT_FOUND,
-            Error::OperationDoesNotExist { .. } => StatusCode::NOT_FOUND,
-            Error::InteractionDoesNotExist { .. } => StatusCode::NOT_FOUND,
+            Error::OperationNotFound { .. } => StatusCode::NOT_FOUND,
+            Error::InteractionNotFound { .. } => StatusCode::NOT_FOUND,
             Error::ConcurrentModificationDetected => StatusCode::CONFLICT,
             Error::CurrentEncounterAlreadyExists { .. } => StatusCode::CONFLICT,
             Error::CharacterNotInCampaign { .. } => StatusCode::CONFLICT,

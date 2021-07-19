@@ -94,8 +94,9 @@ async fn get_campaign_by_id(
     params: Path<CampaignId>,
 ) -> Result<Json<CampaignBody>, Error> {
     let campaign_id = params.into_inner();
-
-    let campaign = manager::get_campaign_by_id(&***db, campaign_id).await?;
+    let campaign = manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
 
     Ok(Json(CampaignBody::render(&***db, campaign).await?))
 }

@@ -70,12 +70,25 @@ pub async fn get_encounters_in_campaign(
 pub async fn get_current_encounter_in_campaign(
     db: &dyn Database,
     campaign: &Campaign,
+) -> Result<Option<Encounter>, Error> {
+    let encounter = db
+        .encounters()
+        .fetch_current_encounter_by_campaign(campaign.id)
+        .await?;
+
+    Ok(encounter)
+}
+
+#[tracing::instrument(skip(db))]
+pub async fn assert_current_encounter_in_campaign(
+    db: &dyn Database,
+    campaign: &Campaign,
 ) -> Result<Encounter, Error> {
     let encounter = db
         .encounters()
         .fetch_current_encounter_by_campaign(campaign.id)
         .await?
-        .ok_or(Error::CurrentEncounterDoesNotExist {
+        .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
 
@@ -86,12 +99,8 @@ pub async fn get_current_encounter_in_campaign(
 pub async fn finish_current_encounter_in_campaign(
     db: &dyn Database,
     campaign: &Campaign,
+    encounter: Encounter,
 ) -> Result<(), Error> {
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
-
     db.encounters()
         .update_encounter_state(encounter, EncounterState::Finished)
         .await?;
@@ -103,15 +112,8 @@ pub async fn finish_current_encounter_in_campaign(
 pub async fn begin_current_encounter_in_campaign(
     db: &dyn Database,
     campaign: &Campaign,
+    encounter: Encounter,
 ) -> Result<Vec<CharacterId>, Error> {
-    let encounter = db
-        .encounters()
-        .fetch_current_encounter_by_campaign(campaign.id)
-        .await?
-        .ok_or(Error::CurrentEncounterDoesNotExist {
-            campaign_id: campaign.id,
-        })?;
-
     let operations = db
         .operations()
         .fetch_operations_by_encounter(encounter.id)

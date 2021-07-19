@@ -45,8 +45,9 @@ async fn get_item_by_id(
     params: Path<ItemId>,
 ) -> Result<Json<ItemBody>, Error> {
     let item_id = params.into_inner();
-
-    let item = manager::get_item_by_id(&***db, item_id).await?;
+    let item = manager::get_item_by_id(&***db, item_id)
+        .await?
+        .ok_or(Error::ItemDoesNotExist { item_id })?;
 
     Ok(Json(ItemBody::render(item)))
 }

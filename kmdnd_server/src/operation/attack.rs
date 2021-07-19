@@ -98,7 +98,7 @@ impl Attack {
                     .characters()
                     .fetch_character_by_campaign_and_id(campaign_id, target_character_id)
                     .await?
-                    .ok_or(Error::CharacterDoesNotExistInCampaign {
+                    .ok_or(Error::CharacterNotFoundInCampaign {
                         campaign_id,
                         character_id: target_character_id,
                     })?;
@@ -120,7 +120,7 @@ impl Attack {
                     .characters()
                     .fetch_character_by_campaign_and_id(campaign_id, target_character_id)
                     .await?
-                    .ok_or(Error::CharacterDoesNotExistInCampaign {
+                    .ok_or(Error::CharacterNotFoundInCampaign {
                         campaign_id,
                         character_id: target_character_id,
                     })?;

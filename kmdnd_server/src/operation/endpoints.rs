@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::campaign::{self, CampaignId};
 use crate::character::{CharacterId, Position};
 use crate::database::Database;
-use crate::encounter::{EncounterId, EncounterState};
+use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
 use crate::item::{DamageType, ItemId};
 use crate::operation::attack::AttackMethod;
@@ -158,11 +158,14 @@ async fn get_operations_in_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<OperationBody>>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign_id)
-        .await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
 
     let operations =
         manager::get_operations_in_current_encounter_in_campaign(&***db, &campaign, &encounter)
@@ -180,19 +183,25 @@ async fn get_operation_by_id_in_current_encounter_in_campaign(
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<OperationBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
-
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
     let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
         &***db,
         &campaign,
         &encounter,
         operation_id,
     )
-    .await?;
+    .await?
+    .ok_or(Error::OperationNotFound {
+        encounter_id: encounter.id,
+        operation_id,
+    })?;
 
     Ok(Json(OperationBody::render(operation)))
 }
@@ -204,13 +213,27 @@ async fn approve_illegal_operation(
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<SuccessBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
+    let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
+        &***db,
+        &campaign,
+        &encounter,
+        operation_id,
+    )
+    .await?
+    .ok_or(Error::OperationNotFound {
+        encounter_id: encounter.id,
+        operation_id,
+    })?;
 
-    manager::approve_illegal_operation(&***db, &campaign, &encounter, operation_id).await?;
+    manager::approve_illegal_operation(&***db, &campaign, &encounter, operation).await?;
 
     Ok(Json(SuccessBody {}))
 }
@@ -222,13 +245,27 @@ async fn reject_illegal_operation(
     params: Path<(CampaignId, OperationId)>,
 ) -> Result<Json<SuccessBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
+    let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
+        &***db,
+        &campaign,
+        &encounter,
+        operation_id,
+    )
+    .await?
+    .ok_or(Error::OperationNotFound {
+        encounter_id: encounter.id,
+        operation_id,
+    })?;
 
-    manager::reject_illegal_operation(&***db, &campaign, &encounter, operation_id).await?;
+    manager::reject_illegal_operation(&***db, &campaign, &encounter, operation).await?;
 
     Ok(Json(SuccessBody {}))
 }
@@ -241,17 +278,31 @@ async fn submit_interaction_result_to_operation(
     body: Json<SubmitInteractionBody>,
 ) -> Result<Json<OperationBody>, Error> {
     let (campaign_id, operation_id) = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
+    let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
+        &***db,
+        &campaign,
+        &encounter,
+        operation_id,
+    )
+    .await?
+    .ok_or(Error::OperationNotFound {
+        encounter_id: encounter.id,
+        operation_id,
+    })?;
 
     let operation = manager::submit_interaction_result_to_operation(
         &***db,
         &campaign,
         &encounter,
-        operation_id,
+        operation,
         body.interaction_id,
         body.character_id,
         body.result,
@@ -269,12 +320,15 @@ async fn roll_in_current_encounter_in_campaign(
     body: Json<RollBody>,
 ) -> Result<Json<RollResultBody>, Error> {
     let campaign_id = params.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
     let body = body.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
 
     let result = manager::roll_in_current_encounter_in_campaign(
         &***db,
@@ -296,11 +350,14 @@ async fn move_in_current_encounter_in_campaign(
     body: Json<MoveBody>,
 ) -> Result<Json<OperationBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
     let body = body.into_inner();
 
     let operation = manager::move_in_current_encounter_in_campaign(
@@ -324,11 +381,14 @@ async fn take_action_in_current_encounter_in_campaign(
     body: Json<ActionBody>,
 ) -> Result<Json<OperationBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
     let body = body.into_inner();
 
     let operation =

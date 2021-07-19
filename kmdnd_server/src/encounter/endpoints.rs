@@ -52,8 +52,10 @@ async fn create_encounter_in_campaign(
     body: Json<CreateEncounterBody>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
     let body = body.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
     let encounter =
         manager::create_encounter_in_campaign(&***db, &campaign, body.character_ids).await?;
@@ -68,7 +70,9 @@ async fn get_encounters_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<EncounterBody>>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
 
     let encounters = manager::get_encounters_in_campaign(&***db, &campaign).await?;
 
@@ -84,25 +88,16 @@ async fn get_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-
-    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
 
     Ok(Json(EncounterBody::render(encounter)))
-}
-
-#[post("/campaigns/{campaign_id}/encounters/CURRENT/finish")]
-#[tracing::instrument(skip(db))]
-async fn finish_current_encounter_in_campaign(
-    db: Data<Box<dyn Database>>,
-    params: Path<CampaignId>,
-) -> Result<Json<SuccessBody>, Error> {
-    let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
-
-    manager::finish_current_encounter_in_campaign(&***db, &campaign).await?;
-
-    Ok(Json(SuccessBody {}))
 }
 
 #[post("/campaigns/{campaign_id}/encounters/CURRENT/begin")]
@@ -112,11 +107,40 @@ async fn begin_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<BeginEncounterResultBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
 
-    let turn_order = manager::begin_current_encounter_in_campaign(&***db, &campaign).await?;
+    let turn_order =
+        manager::begin_current_encounter_in_campaign(&***db, &campaign, encounter).await?;
 
     let body = BeginEncounterResultBody { turn_order };
 
     Ok(Json(body))
+}
+
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/finish")]
+#[tracing::instrument(skip(db))]
+async fn finish_current_encounter_in_campaign(
+    db: Data<Box<dyn Database>>,
+    params: Path<CampaignId>,
+) -> Result<Json<SuccessBody>, Error> {
+    let campaign_id = params.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
+        .await?
+        .ok_or(Error::CampaignNotFound { campaign_id })?;
+    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign)
+        .await?
+        .ok_or(Error::CurrentEncounterNotFound {
+            campaign_id: campaign.id,
+        })?;
+
+    manager::finish_current_encounter_in_campaign(&***db, &campaign, encounter).await?;
+
+    Ok(Json(SuccessBody {}))
 }
