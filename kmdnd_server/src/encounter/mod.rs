@@ -7,6 +7,7 @@ use crate::typedid::{TypedId, TypedIdMarker};
 
 pub mod db;
 pub mod endpoints;
+pub mod manager;
 pub use endpoints::*;
 
 pub type EncounterId = TypedId<Encounter>;

@@ -3,13 +3,13 @@ use actix_web::{get, post};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::campaign::CampaignId;
+use crate::campaign::{self, CampaignId};
 use crate::character::CharacterId;
 use crate::database::Database;
 use crate::error::Error;
 use crate::utils::SuccessBody;
 
-use super::{Encounter, EncounterId, EncounterState};
+use super::{manager, Encounter, EncounterId, EncounterState};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CreateEncounterBody {
@@ -39,6 +39,11 @@ impl EncounterBody {
     }
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct BeginEncounterResultBody {
+    turn_order: Vec<CharacterId>,
+}
+
 #[post("/campaigns/{campaign_id}/encounters")]
 #[tracing::instrument(skip(db))]
 async fn create_encounter_in_campaign(
@@ -47,45 +52,11 @@ async fn create_encounter_in_campaign(
     body: Json<CreateEncounterBody>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
-
     let body = body.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    let current_encounter = db
-        .encounters()
-        .fetch_current_encounter_by_campaign(campaign.id)
-        .await?;
-    if let Some(current_encounter) = current_encounter {
-        return Err(Error::CurrentEncounterAlreadyExists {
-            campaign_id: campaign.id,
-            encounter_id: current_encounter.id,
-        });
-    }
-
-    let characters = db
-        .characters()
-        .fetch_characters_by_campaign(campaign.id)
-        .await?;
-    for character_id in &body.character_ids {
-        if !characters.iter().any(|c| c.id == *character_id) {
-            return Err(Error::CharacterNotInCampaign {
-                campaign_id: campaign.id,
-                character_id: *character_id,
-            });
-        }
-    }
-
-    let now = Utc::now();
-    let encounter = Encounter {
-        id: EncounterId::new(),
-        campaign_id: campaign.id,
-        created_at: now,
-        modified_at: now,
-        character_ids: body.character_ids,
-        state: EncounterState::Initiative,
-    };
-
-    db.encounters().insert_encounter(&encounter).await?;
+    let encounter =
+        manager::create_encounter_in_campaign(&***db, &campaign, body.character_ids).await?;
 
     Ok(Json(EncounterBody::render(encounter)))
 }
@@ -97,12 +68,10 @@ async fn get_encounters_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<EncounterBody>>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    let encounters = db
-        .encounters()
-        .fetch_encounters_by_campaign(campaign.id)
-        .await?;
+    let encounters = manager::get_encounters_in_campaign(&***db, &campaign).await?;
+
     let body = encounters.into_iter().map(EncounterBody::render).collect();
 
     Ok(Json(body))
@@ -115,13 +84,9 @@ async fn get_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<EncounterBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    let encounter = db
-        .encounters()
-        .fetch_current_encounter_by_campaign(campaign.id)
-        .await?
-        .ok_or(Error::CurrentEncounterDoesNotExist { campaign_id })?;
+    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign).await?;
 
     Ok(Json(EncounterBody::render(encounter)))
 }
@@ -133,15 +98,25 @@ async fn finish_current_encounter_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<SuccessBody>, Error> {
     let campaign_id = params.into_inner();
-    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    db.encounters()
-        .update_encounter_state(encounter, EncounterState::Finished)
-        .await?;
+    manager::finish_current_encounter_in_campaign(&***db, &campaign).await?;
 
     Ok(Json(SuccessBody {}))
+}
+
+#[post("/campaigns/{campaign_id}/encounters/CURRENT/begin")]
+#[tracing::instrument(skip(db))]
+async fn begin_current_encounter_in_campaign(
+    db: Data<Box<dyn Database>>,
+    params: Path<CampaignId>,
+) -> Result<Json<BeginEncounterResultBody>, Error> {
+    let campaign_id = params.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
+
+    let turn_order = manager::begin_current_encounter_in_campaign(&***db, &campaign).await?;
+
+    let body = BeginEncounterResultBody { turn_order };
+
+    Ok(Json(body))
 }

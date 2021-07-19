@@ -10,7 +10,7 @@ pub async fn create_campaign(db: &dyn Database, name: String) -> Result<Campaign
     let now = Utc::now();
     let campaign = Campaign {
         id: CampaignId::new(),
-        name: name,
+        name,
         created_at: now,
         modified_at: now,
     };

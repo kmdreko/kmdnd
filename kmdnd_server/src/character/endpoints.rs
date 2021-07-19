@@ -1,18 +1,18 @@
 use actix_web::web::{Data, Json, Path};
 use actix_web::{get, post};
 use chrono::{DateTime, Utc};
-use futures::{future, stream, StreamExt, TryStreamExt};
+use futures::{stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 
-use crate::campaign::CampaignId;
-use crate::character::race::Race;
-use crate::character::Proficiencies;
+use crate::campaign::{self, CampaignId};
 use crate::database::Database;
 use crate::error::Error;
-use crate::item::{self, ItemBody};
-use crate::operation::{AbilityType, RollType};
+use crate::item::ItemBody;
+use crate::operation::RollType;
 
-use super::{Character, CharacterId, CharacterOwner, CharacterStats, Position};
+use super::{
+    manager, Character, CharacterId, CharacterOwner, CharacterStats, Position, RollModifier,
+};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CreateCharacterBody {
@@ -70,6 +70,11 @@ pub struct ItemWithQuantityBody {
     pub item: ItemBody,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct RollStatsBody {
+    modifier: RollModifier,
+}
+
 #[post("/campaigns/{campaign_id}/characters")]
 #[tracing::instrument(skip(db))]
 async fn create_character_in_campaign(
@@ -79,33 +84,9 @@ async fn create_character_in_campaign(
 ) -> Result<Json<CharacterBody>, Error> {
     let campaign_id = params.into_inner();
     let body = body.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    db.campaigns().assert_campaign_exists(campaign_id).await?;
-
-    let now = Utc::now();
-    let mut character = Character {
-        id: CharacterId::new(),
-        owner: CharacterOwner::Campaign(campaign_id),
-        name: body.name,
-        created_at: now,
-        modified_at: now,
-        stats: Default::default(),
-        equipment: vec![],
-        position: None,
-        current_hit_points: 10,
-        maximum_hit_points: 10,
-        race: Race::Human,
-        proficiencies: Proficiencies {
-            armor: vec![],
-            tool: vec![],
-            saving_throws: vec![],
-            skills: vec![],
-        },
-        racial_traits: vec![],
-    };
-    character.recalculate_stats(&***db).await?;
-
-    db.characters().insert_character(&character).await?;
+    let character = manager::create_character_in_campaign(&***db, &campaign, body.name).await?;
 
     Ok(Json(CharacterBody::render(&***db, character).await?))
 }
@@ -117,13 +98,9 @@ async fn get_characters_in_campaign(
     params: Path<CampaignId>,
 ) -> Result<Json<Vec<CharacterBody>>, Error> {
     let campaign_id = params.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    db.campaigns().assert_campaign_exists(campaign_id).await?;
-
-    let characters = db
-        .characters()
-        .fetch_characters_by_campaign(campaign_id)
-        .await?;
+    let characters = manager::get_characters_in_campaign(&***db, &campaign).await?;
 
     let body = stream::iter(characters)
         .then(|character| CharacterBody::render(&***db, character))
@@ -140,32 +117,12 @@ async fn get_character_in_campaign_by_id(
     params: Path<(CampaignId, CharacterId)>,
 ) -> Result<Json<CharacterBody>, Error> {
     let (campaign_id, character_id) = params.into_inner();
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    db.campaigns().assert_campaign_exists(campaign_id).await?;
-
-    let character = db
-        .characters()
-        .fetch_character_by_campaign_and_id(campaign_id, character_id)
-        .await?
-        .ok_or(Error::CharacterDoesNotExistInCampaign {
-            campaign_id,
-            character_id,
-        })?;
+    let character =
+        manager::get_character_in_campaign_by_id(&***db, &campaign, character_id).await?;
 
     Ok(Json(CharacterBody::render(&***db, character).await?))
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct RollStatsBody {
-    modifier: RollModifier,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
-pub enum RollModifier {
-    Advantage,
-    Normal,
-    Disadvantage,
 }
 
 #[get("/campaigns/{campaign_id}/characters/{character_id}/roll/{roll_type}")]
@@ -175,60 +132,10 @@ async fn get_character_roll_stats(
     params: Path<(CampaignId, CharacterId, RollType)>,
 ) -> Result<Json<RollStatsBody>, Error> {
     let (campaign_id, character_id, roll_type) = params.into_inner();
-    let campaign = db.campaigns().assert_campaign_exists(campaign_id).await?;
-    let character = db
-        .characters()
-        .fetch_character_by_campaign_and_id(campaign.id, character_id)
-        .await?
-        .ok_or(Error::CharacterDoesNotExistInCampaign {
-            campaign_id: campaign.id,
-            character_id,
-        })?;
+    let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id).await?;
 
-    let mut stats = RollStatsBody {
-        modifier: RollModifier::Normal,
-    };
-    match roll_type {
-        RollType::SkillCheck(skill) => {
-            if character.proficiencies.skills.contains(&skill) {
-                stats.modifier = RollModifier::Advantage;
-            }
-        }
-        RollType::Save(ability) => {
-            if character.proficiencies.saving_throws.contains(&ability) {
-                stats.modifier = RollModifier::Advantage;
-            }
-        }
-        _ => {}
-    }
+    let modifier =
+        manager::get_character_roll_stats(&***db, &campaign, character_id, roll_type).await?;
 
-    let ability = match roll_type {
-        RollType::SkillCheck(skill) => Some(skill.ability()),
-        RollType::AbilityCheck(ability) => Some(ability),
-        RollType::Save(ability) => Some(ability),
-        _ => None,
-    };
-
-    if matches!(
-        ability,
-        Some(AbilityType::Strength) | Some(AbilityType::Dexterity)
-    ) || matches!(roll_type, RollType::Hit)
-    {
-        let items: Vec<_> = stream::iter(&character.equipment)
-            .then(|equipment| db.items().fetch_item_by_id(equipment.item_id))
-            .try_filter_map(|item| future::ready(Ok(item)))
-            .try_collect()
-            .await?;
-
-        for item in items {
-            if let item::ItemType::Armor(armor) = item.item_type {
-                if !character.proficiencies.armor.contains(&armor.armor_type) {
-                    // TODO: cancel out advantage
-                    stats.modifier = RollModifier::Disadvantage;
-                }
-            }
-        }
-    }
-
-    Err(Error::PathDoesNotExist)
+    Ok(Json(RollStatsBody { modifier }))
 }

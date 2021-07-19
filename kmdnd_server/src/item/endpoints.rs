@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::database::Database;
 use crate::error::Error;
 
-use super::{Item, ItemId, ItemType};
+use super::{manager, Item, ItemId, ItemType};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ItemBody {
@@ -31,7 +31,7 @@ impl ItemBody {
 #[get("/items")]
 #[tracing::instrument(skip(db))]
 async fn get_items(db: Data<Box<dyn Database>>) -> Result<Json<Vec<ItemBody>>, Error> {
-    let items = db.items().fetch_items().await?;
+    let items = manager::get_items(&***db).await?;
 
     let body = items.into_iter().map(ItemBody::render).collect();
 
@@ -46,11 +46,7 @@ async fn get_item_by_id(
 ) -> Result<Json<ItemBody>, Error> {
     let item_id = params.into_inner();
 
-    let item = db
-        .items()
-        .fetch_item_by_id(item_id)
-        .await?
-        .ok_or(Error::ItemDoesNotExist { item_id })?;
+    let item = manager::get_item_by_id(&***db, item_id).await?;
 
     Ok(Json(ItemBody::render(item)))
 }

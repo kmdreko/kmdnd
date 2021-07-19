@@ -14,6 +14,7 @@ use crate::user::UserId;
 
 pub mod db;
 pub mod endpoints;
+pub mod manager;
 pub mod race;
 pub use endpoints::*;
 
@@ -217,6 +218,14 @@ pub struct Proficiencies {
     pub tool: Vec<ToolType>,
     pub saving_throws: Vec<AbilityType>,
     pub skills: Vec<SkillType>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "SCREAMING-KEBAB-CASE")]
+pub enum RollModifier {
+    Advantage,
+    Normal,
+    Disadvantage,
 }
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]

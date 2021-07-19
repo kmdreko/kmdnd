@@ -13,6 +13,7 @@ use crate::violations::Violation;
 pub mod attack;
 pub mod db;
 pub mod endpoints;
+pub mod manager;
 pub mod spell;
 pub use endpoints::*;
 
