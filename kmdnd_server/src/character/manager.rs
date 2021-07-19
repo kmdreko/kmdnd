@@ -142,3 +142,14 @@ pub async fn get_character_roll_stats(
 
     Ok(modifier)
 }
+
+#[tracing::instrument(skip(db))]
+pub async fn update_character_hit_points(
+    db: &dyn Database,
+    character: Character,
+    hit_points: i32,
+) -> Result<Character, Error> {
+    db.characters()
+        .update_character_hit_points(character, hit_points)
+        .await
+}

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::campaign::{Campaign, CampaignId};
+use crate::campaign::Campaign;
 use crate::character::{self, Character, Position};
 use crate::database::Database;
 use crate::encounter::Encounter;
@@ -19,7 +19,7 @@ pub struct Cast {
 impl Cast {
     pub async fn submit(
         _db: &dyn Database,
-        _campaign_id: CampaignId,
+        _campaign: &Campaign,
         _encounter: &Encounter,
         source_character: Character,
         name: String,
@@ -173,9 +173,12 @@ impl Cast {
                     };
 
                     let new_hit_points = i32::max(target_character.current_hit_points - damage, 0);
-                    db.characters()
-                        .update_character_hit_points(target_character, new_hit_points)
-                        .await?;
+                    character::manager::update_character_hit_points(
+                        db,
+                        target_character,
+                        new_hit_points,
+                    )
+                    .await?;
 
                     vec![]
                 }

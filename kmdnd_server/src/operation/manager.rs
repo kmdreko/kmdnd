@@ -371,7 +371,7 @@ pub async fn create_action_operation(
 
             let (attack, interactions, violations) = Attack::submit(
                 db,
-                campaign.id,
+                &campaign,
                 &encounter,
                 source_character,
                 attack.target_character_id,
@@ -384,7 +384,7 @@ pub async fn create_action_operation(
         ActionTypeBody::CastSpell(cast) => {
             let (cast, interactions, violations) = Cast::submit(
                 db,
-                campaign.id,
+                &campaign,
                 &encounter,
                 source_character,
                 cast.name,

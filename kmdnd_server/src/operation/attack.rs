@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::campaign::{Campaign, CampaignId};
+use crate::campaign::Campaign;
 use crate::character::{self, Character, CharacterId, Position};
 use crate::database::Database;
 use crate::encounter::Encounter;
@@ -18,24 +18,23 @@ pub struct Attack {
 impl Attack {
     pub async fn submit(
         db: &dyn Database,
-        campaign_id: CampaignId,
+        campaign: &Campaign,
         encounter: &Encounter,
         source_character: Character,
         target_character_id: CharacterId,
         method: AttackMethod,
     ) -> Result<(Attack, Vec<Interaction>, Vec<Violation>), Error> {
-        let target_character = db
-            .characters()
-            .fetch_character_by_campaign_and_id(campaign_id, target_character_id)
-            .await?
-            .ok_or(Error::CharacterNotInCampaign {
-                campaign_id,
-                character_id: target_character_id,
-            })?;
+        let target_character =
+            character::manager::get_character_by_id(db, campaign, target_character_id)
+                .await?
+                .ok_or(Error::CharacterNotInCampaign {
+                    campaign_id: campaign.id,
+                    character_id: target_character_id,
+                })?;
 
         if !encounter.character_ids.contains(&target_character_id) {
             return Err(Error::CharacterNotInEncounter {
-                campaign_id,
+                campaign_id: campaign.id,
                 encounter_id: encounter.id,
                 character_id: target_character_id,
             });
@@ -116,9 +115,12 @@ impl Attack {
                         .await?;
 
                 let new_hit_points = i32::max(target_character.current_hit_points - result, 0);
-                db.characters()
-                    .update_character_hit_points(target_character, new_hit_points)
-                    .await?;
+                character::manager::update_character_hit_points(
+                    db,
+                    target_character,
+                    new_hit_points,
+                )
+                .await?;
 
                 vec![]
             }

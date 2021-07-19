@@ -4,9 +4,9 @@ use chrono::{DateTime, Utc};
 use futures::{stream, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 
-use crate::character::CharacterBody;
+use crate::character::{self, CharacterBody};
 use crate::database::Database;
-use crate::encounter::EncounterBody;
+use crate::encounter::{self, EncounterBody};
 use crate::error::Error;
 
 use super::{manager, Campaign, CampaignId};
@@ -28,14 +28,14 @@ pub struct CampaignBody {
 
 impl CampaignBody {
     pub async fn render(db: &dyn Database, campaign: Campaign) -> Result<CampaignBody, Error> {
-        let characters = db
-            .characters()
-            .fetch_characters_by_campaign(campaign.id)
-            .await?;
+        let characters = character::manager::get_characters(db, &campaign).await?;
         let characters = stream::iter(characters)
             .then(|character| CharacterBody::render(db, character))
             .try_collect()
             .await?;
+        let current_encounter = encounter::manager::get_current_encounter(db, &campaign)
+            .await?
+            .map(EncounterBody::render);
 
         Ok(CampaignBody {
             id: campaign.id,
@@ -43,11 +43,7 @@ impl CampaignBody {
             created_at: campaign.created_at,
             modified_at: campaign.modified_at,
             characters,
-            current_encounter: db
-                .encounters()
-                .fetch_current_encounter_by_campaign(campaign.id)
-                .await?
-                .map(EncounterBody::render),
+            current_encounter,
         })
     }
 }
