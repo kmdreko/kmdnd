@@ -18,12 +18,12 @@ pub async fn get_item_by_id(db: &dyn Database, item_id: ItemId) -> Result<Option
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn assert_item_by_id(db: &dyn Database, item_id: ItemId) -> Result<Item, Error> {
+pub async fn expect_item_by_id(db: &dyn Database, item_id: ItemId) -> Result<Item, Error> {
     let item = db
         .items()
         .fetch_item_by_id(item_id)
         .await?
-        .ok_or(Error::ItemDoesNotExist { item_id })?;
+        .ok_or(Error::ItemExpected { item_id })?;
 
     Ok(item)
 }

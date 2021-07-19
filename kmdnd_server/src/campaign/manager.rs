@@ -28,17 +28,6 @@ pub async fn get_campaigns(db: &dyn Database) -> Result<Vec<Campaign>, Error> {
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn assert_campaign_exists(
-    db: &dyn Database,
-    campaign_id: CampaignId,
-) -> Result<Campaign, Error> {
-    db.campaigns()
-        .fetch_campaign_by_id(campaign_id)
-        .await?
-        .ok_or(Error::CampaignNotFound { campaign_id })
-}
-
-#[tracing::instrument(skip(db))]
 pub async fn get_campaign_by_id(
     db: &dyn Database,
     campaign_id: CampaignId,
@@ -94,7 +83,10 @@ mod tests {
             }))
         });
 
-        let campaign = assert_campaign_exists(&db, test_campaign_id).await.unwrap();
+        let campaign = get_campaign_by_id(&db, test_campaign_id)
+            .await
+            .unwrap()
+            .unwrap();
 
         assert_eq!(campaign.name, "Blue Man Group".to_string());
         assert_eq!(campaign.created_at, campaign.modified_at);
@@ -105,7 +97,7 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn get_campaign_by_id_returns_error_if_doesnt_exist() {
+    async fn get_campaign_by_id_returns_none_if_doesnt_exist() {
         let mut db = MockDatabase::new();
         let test_campaign_id = CampaignId::new();
         let called_get_by_id = Arc::new(Mutex::new(false));
@@ -116,14 +108,9 @@ mod tests {
             Ok(None)
         });
 
-        let campaign_result = assert_campaign_exists(&db, test_campaign_id).await;
+        let campaign_result = get_campaign_by_id(&db, test_campaign_id).await.unwrap();
 
-        assert_eq!(
-            campaign_result.unwrap_err(),
-            Error::CampaignNotFound {
-                campaign_id: test_campaign_id
-            }
-        );
+        assert!(campaign_result.is_none());
         assert!(
             *called_get_by_id.lock().unwrap(),
             "db.fetch_campaign_by_id was not called"

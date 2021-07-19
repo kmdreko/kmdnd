@@ -20,11 +20,6 @@ pub trait EncounterStore {
         campaign_id: CampaignId,
     ) -> Result<Vec<Encounter>, Error>;
 
-    async fn assert_current_encounter_exists(
-        &self,
-        campaign_id: CampaignId,
-    ) -> Result<Encounter, Error>;
-
     async fn fetch_current_encounter_by_campaign(
         &self,
         campaign_id: CampaignId,
@@ -69,16 +64,6 @@ impl EncounterStore for MongoEncounterStore {
             .await?;
 
         Ok(encounters)
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn assert_current_encounter_exists(
-        &self,
-        campaign_id: CampaignId,
-    ) -> Result<Encounter, Error> {
-        self.fetch_current_encounter_by_campaign(campaign_id)
-            .await?
-            .ok_or(Error::CurrentEncounterNotFound { campaign_id })
     }
 
     #[tracing::instrument(skip(self))]

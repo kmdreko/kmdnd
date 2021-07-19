@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::campaign::{self, CampaignId};
 use crate::database::Database;
 use crate::error::Error;
-use crate::item::ItemBody;
+use crate::item::{self, ItemBody};
 use crate::operation::RollType;
 
 use super::{
@@ -37,11 +37,7 @@ impl CharacterBody {
     pub async fn render(db: &dyn Database, character: Character) -> Result<CharacterBody, Error> {
         let mut equipment = vec![];
         for entry in character.equipment {
-            let item = db.items().fetch_item_by_id(entry.item_id).await?.ok_or(
-                Error::ItemDoesNotExist {
-                    item_id: entry.item_id,
-                },
-            )?;
+            let item = item::manager::expect_item_by_id(db, entry.item_id).await?;
             let body = ItemBody::render(item);
             equipment.push(ItemWithQuantityBody {
                 quantity: entry.quantity,

@@ -123,6 +123,16 @@ pub enum Error {
 
     // 500
     ExistentialState(String),
+    CampaignExpected {
+        campaign_id: CampaignId,
+    },
+    CharacterExpectedInCampaign {
+        campaign_id: CampaignId,
+        character_id: CharacterId,
+    },
+    ItemExpected {
+        item_id: ItemId,
+    },
     #[serde(serialize_with = "display")]
     FailedDatabaseCall(#[derivative(PartialEq = "ignore")] DatabaseError),
     #[serde(serialize_with = "display")]
@@ -160,10 +170,14 @@ impl Error {
             Error::CastUsesWrongTargetType { .. } => "E4091014",
             Error::OperationViolatesRules { .. } => "E4091015",
             Error::OperationIsNotPending { .. } => "E4091016",
-            Error::ExistentialState(_) => "E5001000",
-            Error::FailedDatabaseCall(_) => "E5001001",
-            Error::FailedToSerializeToBson(_) => "E5001002",
-            Error::IoError(_) => "E5001003",
+            Error::ExistentialState(_) => "E5002000",
+            Error::CampaignExpected { .. } => "E5001001",
+            Error::CharacterExpectedInCampaign { .. } => "E5001002",
+            Error::ItemExpected { .. } => "E5001003",
+
+            Error::FailedDatabaseCall(_) => "E5002001",
+            Error::FailedToSerializeToBson(_) => "E5002002",
+            Error::IoError(_) => "E5002003",
         }
     }
 
@@ -224,6 +238,12 @@ impl Error {
                 "The requested operation's legality is not pending"
             }
             Error::ExistentialState(_) => "The server detected an invalid state",
+            Error::CampaignExpected { .. } => "The server expected a campaign to exist",
+            Error::CharacterExpectedInCampaign { .. } => {
+                "The server expected a character in a campaign to exist"
+            }
+            Error::ItemExpected { .. } => "The server expected an item to exist",
+
             Error::FailedDatabaseCall(_) => {
                 "An error occurred when communicating with the database"
             }
@@ -265,6 +285,10 @@ impl ResponseError for Error {
             Error::OperationViolatesRules { .. } => StatusCode::CONFLICT,
             Error::OperationIsNotPending { .. } => StatusCode::CONFLICT,
             Error::ExistentialState(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::CampaignExpected { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::CharacterExpectedInCampaign { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::ItemExpected { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+
             Error::FailedDatabaseCall(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::FailedToSerializeToBson(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,

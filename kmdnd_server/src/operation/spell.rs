@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::campaign::CampaignId;
-use crate::character::{Character, Position};
+use crate::campaign::{Campaign, CampaignId};
+use crate::character::{self, Character, Position};
 use crate::database::Database;
 use crate::encounter::Encounter;
 use crate::error::Error;
@@ -89,7 +89,7 @@ impl Cast {
     pub async fn handle_interaction_result(
         &self,
         db: &dyn Database,
-        campaign_id: CampaignId,
+        campaign: &Campaign,
         encounter: &Encounter,
         operation: &Operation,
         interaction: &Interaction,
@@ -110,14 +110,13 @@ impl Cast {
 
                     let mut characters_in_encounter = vec![];
                     for &character_id in &encounter.character_ids {
-                        let character = db
-                            .characters()
-                            .fetch_character_by_campaign_and_id(campaign_id, character_id)
-                            .await?
-                            .ok_or(Error::CharacterNotFoundInCampaign {
-                                campaign_id,
-                                character_id,
-                            })?;
+                        let character = character::manager::expect_character_in_campaign_by_id(
+                            db,
+                            campaign,
+                            character_id,
+                        )
+                        .await?;
+
                         characters_in_encounter.push(character);
                     }
 
@@ -147,14 +146,12 @@ impl Cast {
                     interactions
                 }
                 RollType::Save(AbilityType::Dexterity) => {
-                    let target_character = db
-                        .characters()
-                        .fetch_character_by_campaign_and_id(campaign_id, interaction.character_id)
-                        .await?
-                        .ok_or(Error::CharacterNotFoundInCampaign {
-                            campaign_id,
-                            character_id: interaction.character_id,
-                        })?;
+                    let target_character = character::manager::expect_character_in_campaign_by_id(
+                        db,
+                        campaign,
+                        interaction.character_id,
+                    )
+                    .await?;
 
                     let damage_interaction = operation
                         .interactions

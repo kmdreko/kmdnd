@@ -80,22 +80,6 @@ pub async fn get_current_encounter_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn assert_current_encounter_in_campaign(
-    db: &dyn Database,
-    campaign: &Campaign,
-) -> Result<Encounter, Error> {
-    let encounter = db
-        .encounters()
-        .fetch_current_encounter_by_campaign(campaign.id)
-        .await?
-        .ok_or(Error::CurrentEncounterNotFound {
-            campaign_id: campaign.id,
-        })?;
-
-    Ok(encounter)
-}
-
-#[tracing::instrument(skip(db))]
 pub async fn finish_current_encounter_in_campaign(
     db: &dyn Database,
     campaign: &Campaign,

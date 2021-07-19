@@ -73,7 +73,7 @@ pub async fn get_character_in_campaign_by_id(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn assert_character_in_campaign_by_id(
+pub async fn expect_character_in_campaign_by_id(
     db: &dyn Database,
     campaign: &Campaign,
     character_id: CharacterId,
@@ -82,7 +82,7 @@ pub async fn assert_character_in_campaign_by_id(
         .characters()
         .fetch_character_by_campaign_and_id(campaign.id, character_id)
         .await?
-        .ok_or(Error::CharacterNotFoundInCampaign {
+        .ok_or(Error::CharacterExpectedInCampaign {
             campaign_id: campaign.id,
             character_id,
         })?;

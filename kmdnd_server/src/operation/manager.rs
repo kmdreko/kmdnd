@@ -19,11 +19,6 @@ pub async fn get_operations_in_current_encounter_in_campaign(
     campaign: &Campaign,
     encounter: &Encounter,
 ) -> Result<Vec<Operation>, Error> {
-    let encounter = db
-        .encounters()
-        .assert_current_encounter_exists(campaign.id)
-        .await?;
-
     let operations = db
         .operations()
         .fetch_operations_by_encounter(encounter.id)
@@ -40,25 +35,6 @@ pub async fn get_operation_by_id_in_current_encounter_in_campaign(
     operation_id: OperationId,
 ) -> Result<Option<Operation>, Error> {
     let operation = db.operations().fetch_operation_by_id(operation_id).await?;
-
-    Ok(operation)
-}
-
-#[tracing::instrument(skip(db))]
-pub async fn assert_operation_by_id_in_current_encounter_in_campaign(
-    db: &dyn Database,
-    campaign: &Campaign,
-    encounter: &Encounter,
-    operation_id: OperationId,
-) -> Result<Operation, Error> {
-    let operation = db
-        .operations()
-        .fetch_operation_by_id(operation_id)
-        .await?
-        .ok_or(Error::OperationNotFound {
-            encounter_id: encounter.id,
-            operation_id,
-        })?;
 
     Ok(operation)
 }
@@ -142,13 +118,13 @@ pub async fn submit_interaction_result_to_operation(
         OperationType::Action(action) => match action {
             Action::Attack(attack) => {
                 attack
-                    .handle_interaction_result(db, campaign.id, &interaction, result)
+                    .handle_interaction_result(db, &campaign, &interaction, result)
                     .await?
             }
             Action::CastSpell(cast) => {
                 cast.handle_interaction_result(
                     db,
-                    campaign.id,
+                    &campaign,
                     &encounter,
                     &operation,
                     &interaction,

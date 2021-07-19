@@ -8,7 +8,7 @@ use crate::character::{CharacterId, Position};
 use crate::database::Database;
 use crate::encounter::{self, EncounterId, EncounterState};
 use crate::error::Error;
-use crate::item::{DamageType, ItemId};
+use crate::item::{self, DamageType, ItemId};
 use crate::operation::attack::AttackMethod;
 use crate::operation::{Interaction, InteractionId, Legality};
 use crate::utils::SuccessBody;
@@ -100,9 +100,7 @@ impl AttackMethodBody {
         let attack_method = match self {
             AttackMethodBody::Unarmed { damage_type } => AttackMethod::Unarmed(damage_type),
             AttackMethodBody::Weapon { weapon_id } => {
-                let item = db
-                    .items()
-                    .fetch_item_by_id(weapon_id)
+                let item = item::manager::get_item_by_id(db, weapon_id)
                     .await?
                     .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
 
@@ -114,9 +112,7 @@ impl AttackMethodBody {
                 AttackMethod::Weapon(weapon)
             }
             AttackMethodBody::ImprovisedWeapon { weapon_id } => {
-                let item = db
-                    .items()
-                    .fetch_item_by_id(weapon_id)
+                let item = item::manager::get_item_by_id(db, weapon_id)
                     .await?
                     .ok_or(Error::ItemDoesNotExist { item_id: weapon_id })?;
 
