@@ -12,7 +12,7 @@ use crate::operation::{AbilityType, RollType};
 use super::{Character, CharacterId, CharacterOwner};
 
 #[tracing::instrument(skip(db))]
-pub async fn create_character_in_campaign(
+pub async fn create_character(
     db: &dyn Database,
     campaign: &Campaign,
     name: String,
@@ -46,7 +46,7 @@ pub async fn create_character_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn get_characters_in_campaign(
+pub async fn get_characters(
     db: &dyn Database,
     campaign: &Campaign,
 ) -> Result<Vec<Character>, Error> {
@@ -59,7 +59,7 @@ pub async fn get_characters_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn get_character_in_campaign_by_id(
+pub async fn get_character_by_id(
     db: &dyn Database,
     campaign: &Campaign,
     character_id: CharacterId,
@@ -73,7 +73,7 @@ pub async fn get_character_in_campaign_by_id(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn expect_character_in_campaign_by_id(
+pub async fn expect_character_by_id(
     db: &dyn Database,
     campaign: &Campaign,
     character_id: CharacterId,

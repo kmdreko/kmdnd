@@ -14,7 +14,7 @@ use crate::violations::Violation;
 use super::{ActionBody, Move, Operation, OperationId, OperationType, RollType};
 
 #[tracing::instrument(skip(db))]
-pub async fn get_operations_in_current_encounter_in_campaign(
+pub async fn get_operations_in_encounter(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
@@ -28,7 +28,7 @@ pub async fn get_operations_in_current_encounter_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn get_operation_by_id_in_current_encounter_in_campaign(
+pub async fn get_operation_by_id_in_encounter(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
@@ -86,7 +86,7 @@ pub async fn reject_illegal_operation(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn submit_interaction_result_to_operation(
+pub async fn submit_interaction_result(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
@@ -156,7 +156,7 @@ pub async fn submit_interaction_result_to_operation(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn roll_in_current_encounter_in_campaign(
+pub async fn create_roll_operation(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
@@ -226,7 +226,7 @@ pub async fn roll_in_current_encounter_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn move_in_current_encounter_in_campaign(
+pub async fn create_move_operation(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,
@@ -331,7 +331,7 @@ pub async fn move_in_current_encounter_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn take_action_in_current_encounter_in_campaign(
+pub async fn create_action_operation(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: &Encounter,

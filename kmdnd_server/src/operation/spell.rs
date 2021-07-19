@@ -110,12 +110,9 @@ impl Cast {
 
                     let mut characters_in_encounter = vec![];
                     for &character_id in &encounter.character_ids {
-                        let character = character::manager::expect_character_in_campaign_by_id(
-                            db,
-                            campaign,
-                            character_id,
-                        )
-                        .await?;
+                        let character =
+                            character::manager::expect_character_by_id(db, campaign, character_id)
+                                .await?;
 
                         characters_in_encounter.push(character);
                     }
@@ -146,7 +143,7 @@ impl Cast {
                     interactions
                 }
                 RollType::Save(AbilityType::Dexterity) => {
-                    let target_character = character::manager::expect_character_in_campaign_by_id(
+                    let target_character = character::manager::expect_character_by_id(
                         db,
                         campaign,
                         interaction.character_id,

@@ -9,7 +9,7 @@ use crate::operation::RollType;
 use super::{Encounter, EncounterId, EncounterState};
 
 #[tracing::instrument(skip(db))]
-pub async fn create_encounter_in_campaign(
+pub async fn create_encounter(
     db: &dyn Database,
     campaign: &Campaign,
     character_ids: Vec<CharacterId>,
@@ -54,7 +54,7 @@ pub async fn create_encounter_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn get_encounters_in_campaign(
+pub async fn get_encounters(
     db: &dyn Database,
     campaign: &Campaign,
 ) -> Result<Vec<Encounter>, Error> {
@@ -67,7 +67,7 @@ pub async fn get_encounters_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn get_current_encounter_in_campaign(
+pub async fn get_current_encounter(
     db: &dyn Database,
     campaign: &Campaign,
 ) -> Result<Option<Encounter>, Error> {
@@ -80,7 +80,7 @@ pub async fn get_current_encounter_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn finish_current_encounter_in_campaign(
+pub async fn finish_encounter(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: Encounter,
@@ -93,7 +93,7 @@ pub async fn finish_current_encounter_in_campaign(
 }
 
 #[tracing::instrument(skip(db))]
-pub async fn begin_current_encounter_in_campaign(
+pub async fn begin_encounter(
     db: &dyn Database,
     campaign: &Campaign,
     encounter: Encounter,

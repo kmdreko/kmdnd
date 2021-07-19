@@ -57,8 +57,7 @@ async fn create_encounter_in_campaign(
         .ok_or(Error::CampaignNotFound { campaign_id })?;
     let body = body.into_inner();
 
-    let encounter =
-        manager::create_encounter_in_campaign(&***db, &campaign, body.character_ids).await?;
+    let encounter = manager::create_encounter(&***db, &campaign, body.character_ids).await?;
 
     Ok(Json(EncounterBody::render(encounter)))
 }
@@ -74,7 +73,7 @@ async fn get_encounters_in_campaign(
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
 
-    let encounters = manager::get_encounters_in_campaign(&***db, &campaign).await?;
+    let encounters = manager::get_encounters(&***db, &campaign).await?;
 
     let body = encounters.into_iter().map(EncounterBody::render).collect();
 
@@ -91,7 +90,7 @@ async fn get_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
@@ -110,14 +109,13 @@ async fn begin_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
 
-    let turn_order =
-        manager::begin_current_encounter_in_campaign(&***db, &campaign, encounter).await?;
+    let turn_order = manager::begin_encounter(&***db, &campaign, encounter).await?;
 
     let body = BeginEncounterResultBody { turn_order };
 
@@ -134,13 +132,13 @@ async fn finish_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
 
-    manager::finish_current_encounter_in_campaign(&***db, &campaign, encounter).await?;
+    manager::finish_encounter(&***db, &campaign, encounter).await?;
 
     Ok(Json(SuccessBody {}))
 }

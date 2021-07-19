@@ -84,7 +84,7 @@ async fn create_character_in_campaign(
         .ok_or(Error::CampaignNotFound { campaign_id })?;
     let body = body.into_inner();
 
-    let character = manager::create_character_in_campaign(&***db, &campaign, body.name).await?;
+    let character = manager::create_character(&***db, &campaign, body.name).await?;
 
     Ok(Json(CharacterBody::render(&***db, character).await?))
 }
@@ -100,7 +100,7 @@ async fn get_characters_in_campaign(
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
 
-    let characters = manager::get_characters_in_campaign(&***db, &campaign).await?;
+    let characters = manager::get_characters(&***db, &campaign).await?;
 
     let body = stream::iter(characters)
         .then(|character| CharacterBody::render(&***db, character))
@@ -120,7 +120,7 @@ async fn get_character_in_campaign_by_id(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let character = manager::get_character_in_campaign_by_id(&***db, &campaign, character_id)
+    let character = manager::get_character_by_id(&***db, &campaign, character_id)
         .await?
         .ok_or(Error::CharacterNotFoundInCampaign {
             campaign_id: campaign.id,
@@ -140,7 +140,7 @@ async fn get_character_roll_stats(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let character = manager::get_character_in_campaign_by_id(&***db, &campaign, character_id)
+    let character = manager::get_character_by_id(&***db, &campaign, character_id)
         .await?
         .ok_or(Error::CharacterNotFoundInCampaign {
             campaign_id: campaign.id,

@@ -94,12 +94,9 @@ impl Attack {
         let new_interactions = match interaction.roll_type {
             RollType::Hit => {
                 let target_character_id = self.targets[0]; // TODO:
-                let target_character = character::manager::expect_character_in_campaign_by_id(
-                    db,
-                    campaign,
-                    target_character_id,
-                )
-                .await?;
+                let target_character =
+                    character::manager::expect_character_by_id(db, campaign, target_character_id)
+                        .await?;
 
                 if target_character.stats.armor_class <= result {
                     vec![Interaction {
@@ -114,12 +111,9 @@ impl Attack {
             }
             RollType::Damage => {
                 let target_character_id = self.targets[0]; // TODO:
-                let target_character = character::manager::expect_character_in_campaign_by_id(
-                    db,
-                    campaign,
-                    target_character_id,
-                )
-                .await?;
+                let target_character =
+                    character::manager::expect_character_by_id(db, campaign, target_character_id)
+                        .await?;
 
                 let new_hit_points = i32::max(target_character.current_hit_points - result, 0);
                 db.characters()

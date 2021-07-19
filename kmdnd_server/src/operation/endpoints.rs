@@ -157,15 +157,13 @@ async fn get_operations_in_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
 
-    let operations =
-        manager::get_operations_in_current_encounter_in_campaign(&***db, &campaign, &encounter)
-            .await?;
+    let operations = manager::get_operations_in_encounter(&***db, &campaign, &encounter).await?;
 
     let body = operations.into_iter().map(OperationBody::render).collect();
 
@@ -182,22 +180,18 @@ async fn get_operation_by_id_in_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
-    let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
-        &***db,
-        &campaign,
-        &encounter,
-        operation_id,
-    )
-    .await?
-    .ok_or(Error::OperationNotFound {
-        encounter_id: encounter.id,
-        operation_id,
-    })?;
+    let operation =
+        manager::get_operation_by_id_in_encounter(&***db, &campaign, &encounter, operation_id)
+            .await?
+            .ok_or(Error::OperationNotFound {
+                encounter_id: encounter.id,
+                operation_id,
+            })?;
 
     Ok(Json(OperationBody::render(operation)))
 }
@@ -212,22 +206,18 @@ async fn approve_illegal_operation(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
-    let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
-        &***db,
-        &campaign,
-        &encounter,
-        operation_id,
-    )
-    .await?
-    .ok_or(Error::OperationNotFound {
-        encounter_id: encounter.id,
-        operation_id,
-    })?;
+    let operation =
+        manager::get_operation_by_id_in_encounter(&***db, &campaign, &encounter, operation_id)
+            .await?
+            .ok_or(Error::OperationNotFound {
+                encounter_id: encounter.id,
+                operation_id,
+            })?;
 
     manager::approve_illegal_operation(&***db, &campaign, &encounter, operation).await?;
 
@@ -244,22 +234,18 @@ async fn reject_illegal_operation(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
-    let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
-        &***db,
-        &campaign,
-        &encounter,
-        operation_id,
-    )
-    .await?
-    .ok_or(Error::OperationNotFound {
-        encounter_id: encounter.id,
-        operation_id,
-    })?;
+    let operation =
+        manager::get_operation_by_id_in_encounter(&***db, &campaign, &encounter, operation_id)
+            .await?
+            .ok_or(Error::OperationNotFound {
+                encounter_id: encounter.id,
+                operation_id,
+            })?;
 
     manager::reject_illegal_operation(&***db, &campaign, &encounter, operation).await?;
 
@@ -277,24 +263,20 @@ async fn submit_interaction_result_to_operation(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
-    let operation = manager::get_operation_by_id_in_current_encounter_in_campaign(
-        &***db,
-        &campaign,
-        &encounter,
-        operation_id,
-    )
-    .await?
-    .ok_or(Error::OperationNotFound {
-        encounter_id: encounter.id,
-        operation_id,
-    })?;
+    let operation =
+        manager::get_operation_by_id_in_encounter(&***db, &campaign, &encounter, operation_id)
+            .await?
+            .ok_or(Error::OperationNotFound {
+                encounter_id: encounter.id,
+                operation_id,
+            })?;
 
-    let operation = manager::submit_interaction_result_to_operation(
+    let operation = manager::submit_interaction_result(
         &***db,
         &campaign,
         &encounter,
@@ -319,21 +301,16 @@ async fn roll_in_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
     let body = body.into_inner();
 
-    let result = manager::roll_in_current_encounter_in_campaign(
-        &***db,
-        &campaign,
-        &encounter,
-        body.character_id,
-        body.roll,
-    )
-    .await?;
+    let result =
+        manager::create_roll_operation(&***db, &campaign, &encounter, body.character_id, body.roll)
+            .await?;
 
     Ok(Json(RollResultBody { result }))
 }
@@ -349,14 +326,14 @@ async fn move_in_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
     let body = body.into_inner();
 
-    let operation = manager::move_in_current_encounter_in_campaign(
+    let operation = manager::create_move_operation(
         &***db,
         &campaign,
         &encounter,
@@ -380,16 +357,14 @@ async fn take_action_in_current_encounter_in_campaign(
     let campaign = campaign::manager::get_campaign_by_id(&***db, campaign_id)
         .await?
         .ok_or(Error::CampaignNotFound { campaign_id })?;
-    let encounter = encounter::manager::get_current_encounter_in_campaign(&***db, &campaign)
+    let encounter = encounter::manager::get_current_encounter(&***db, &campaign)
         .await?
         .ok_or(Error::CurrentEncounterNotFound {
             campaign_id: campaign.id,
         })?;
     let body = body.into_inner();
 
-    let operation =
-        manager::take_action_in_current_encounter_in_campaign(&***db, &campaign, &encounter, body)
-            .await?;
+    let operation = manager::create_action_operation(&***db, &campaign, &encounter, body).await?;
 
     Ok(Json(OperationBody::render(operation)))
 }
